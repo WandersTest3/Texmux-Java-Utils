@@ -1,33 +1,46 @@
 # Termux Java Utils
 
-App Android para compilação de APKs e mods JAR com três abordagens.
+App Android para compilar apps Android (APK) e mods Java (JAR) direto do celular, usando o Termux, sem precisar de PC.
 
-## Abordagens
+## Compilar projeto (principal)
 
-### 1. Termux Wrapper
-Dispara comandos Gradle diretamente no Termux via Intent `com.termux.RUN_COMMAND`.  
-Requer: Termux instalado com a permissão `RUN_COMMAND` ativada.
+1. Escolha a origem do código:
+   - **ZIP em Downloads**: digite o nome do arquivo (ou use *Listar ZIPs*).
+   - **Link do repositório**: cole o link do GitHub; o app baixa o código sozinho. Repositórios privados usam o token salvo em *GitHub Actions*.
+2. Escolha o que gerar (Automático, APK Release, APK Debug ou JAR) e, se precisar, o módulo e os arquivos de assinatura.
+3. Toque em **Compilar agora**. O build roda em segundo plano dentro do Termux, mostra etapas e log ao vivo e avisa por notificação quando termina. O APK/JAR é copiado para a pasta Downloads.
 
-```
-# Ativar permissão no Termux:
-termux-setup-storage
-```
+O app detecta sozinho a raiz do projeto, o módulo Android (`com.android.application`), a tarefa Gradle e se é um app ou um mod.
 
-### 2. GitHub Actions CI/CD
-Dispara workflows remotos via API do GitHub e verifica o status da execução.  
-Requer: Personal Access Token com permissão `repo` e `workflow`.
+### Quando falha
+O app lê o log e explica o motivo com passos de correção, e oferece correção automática quando possível. Exemplos reconhecidos: Java ausente ou versão errada, `unzip`/`git` faltando, sem permissão de Downloads, ZIP não encontrado ou corrompido, Gradle Wrapper ausente, SDK/plataforma/build-tools ausentes, licenças não aceitas, aapt2 incompatível, falta de memória, rede, dependência/plugin não encontrado, senha de keystore errada e erros de compilação (arquivo:linha).
 
-### 3. Gerador de Scripts
-Gera scripts de build reutilizáveis para APK release, JAR de mod ou personalizado.  
-Permite copiar ou enviar diretamente ao Termux.
+### Perfis
+Salve as configurações de um projeto para compilar com um toque. Há um perfil de exemplo (`Pojarush_Test3`) que você pode editar ou excluir.
 
-## Build
+## Preparar Termux (uma vez)
+
+1. Instale o Termux pela F-Droid ou pelo GitHub.
+2. Cole no Termux o comando de configuração copiado pelo app (ativa `allow-external-apps`).
+3. Conceda a permissão *Executar comandos no Termux* ao app.
+4. Toque em **Verificar ambiente** e depois em **Instalar o que falta**.
+
+O Android SDK (pasta com `platforms` e `build-tools`, padrão `$HOME/android-sdk`) precisa existir no Termux para compilar apps Android.
+
+## Outras telas
+
+- **GitHub Actions**: dispara um workflow, mostra o status e baixa o artefato para Downloads.
+- **Comandos no Termux**: roda um comando Gradle com a sessão visível.
+- **Gerador de scripts**: gera scripts de build para copiar ou enviar ao Termux.
+
+## Build do app
 
 ```bash
 ./gradlew assembleDebug
+./gradlew testDebugUnitTest
 ```
 
-Requer: JDK 17, Android SDK (compileSdk 34).
+Requer JDK 17 e Android SDK (compileSdk 34).
 
 ## Notas
 

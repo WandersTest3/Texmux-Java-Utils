@@ -109,6 +109,45 @@ public class GitHubApiClient {
         }).start();
     }
 
+    public interface DownloadCallback {
+        void onDone(long bytes);
+        void onError(String error);
+    }
+
+    public void downloadArtifact(String archiveUrl, java.io.OutputStream out, DownloadCallback callback) {
+        new Thread(() -> {
+            try {
+                Request request = new Request.Builder()
+                        .url(archiveUrl)
+                        .header("Authorization", "Bearer " + token)
+                        .header("Accept", "application/vnd.github+json")
+                        .header("X-GitHub-Api-Version", "2022-11-28")
+                        .get()
+                        .build();
+                try (Response response = client.newCall(request).execute()) {
+                    if (!response.isSuccessful() || response.body() == null) {
+                        callback.onError("HTTP " + response.code());
+                        return;
+                    }
+                    long total = 0;
+                    byte[] buf = new byte[16384];
+                    try (java.io.InputStream in = response.body().byteStream()) {
+                        int n;
+                        while ((n = in.read(buf)) > 0) {
+                            out.write(buf, 0, n);
+                            total += n;
+                        }
+                    }
+                    out.flush();
+                    out.close();
+                    callback.onDone(total);
+                }
+            } catch (Exception e) {
+                callback.onError(String.valueOf(e.getMessage()));
+            }
+        }).start();
+    }
+
     public interface Callback {
         void onSuccess(JSONObject result);
         void onError(String error);

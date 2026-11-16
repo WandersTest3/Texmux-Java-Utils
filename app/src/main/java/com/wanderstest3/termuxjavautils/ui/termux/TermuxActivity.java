@@ -1,98 +1,86 @@
 package com.wanderstest3.termuxjavautils.ui.termux;
 
-import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
-import com.wanderstest3.termuxjavautils.databinding.ActivityTermuxBinding;
+import android.widget.RadioGroup;
+import android.widget.TextView;
+import com.google.android.material.button.MaterialButton;
+import com.wanderstest3.termuxjavautils.R;
+import com.wanderstest3.termuxjavautils.build.ScriptBuilder;
+import com.wanderstest3.termuxjavautils.termux.TermuxBridge;
+import com.wanderstest3.termuxjavautils.ui.common.BaseActivity;
+import com.wanderstest3.termuxjavautils.ui.common.Ui;
 
-public class TermuxActivity extends AppCompatActivity {
+public class TermuxActivity extends BaseActivity {
 
-    private static final String TERMUX_PACKAGE = "com.termux";
-    private static final String TERMUX_RUN_COMMAND = "com.termux.RUN_COMMAND";
+    private static final int ID_APK = 7001;
+    private static final int ID_JAR = 7002;
+    private static final int ID_CUSTOM = 7003;
 
-    private ActivityTermuxBinding binding;
+    private Ui.Input etPath;
+    private Ui.Input etCmd;
+    private RadioGroup rg;
+    private TextView tvStatus;
+
+    @Override
+    protected String screenTitle() {
+        return "Comandos no Termux";
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityTermuxBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        content.addView(ui.hint("Abre o Termux e roda um comando Gradle na pasta do projeto, com a sessão visível "
+                + "para você acompanhar. Para compilar sem olhar o Termux, use Compilar projeto."));
 
-        binding.btnBack.setOnClickListener(v -> finish());
-
-        binding.rgBuildType.setOnCheckedChangeListener((group, checkedId) -> {
-            binding.etCustomCmd.setText("");
-        });
-
-        binding.btnRunTermux.setOnClickListener(v -> runInTermux());
+        Ui.Card c = ui.card("Projeto", "Para o app avisar e explicar erros automaticamente, prefira Compilar projeto.");
+        etPath = ui.input("Pasta do projeto no Termux", "~ é a pasta inicial do Termux.", "~/projects/MeuApp");
+        rg = ui.radioGroup();
+        rg.addView(ui.radio("APK release (./gradlew assembleRelease)", ID_APK));
+        rg.addView(ui.radio("JAR / mod (./gradlew build)", ID_JAR));
+        rg.addView(ui.radio("Comando personalizado", ID_CUSTOM));
+        rg.check(ID_APK);
+        etCmd = ui.input("Comando personalizado", "Só usado na opção personalizada.", "./gradlew assembleDebug");
+        MaterialButton run = ui.button("Executar no Termux");
+        run.setOnClickListener(v -> run());
+        tvStatus = ui.hint("");
+        c.body.addView(etPath.layout);
+        c.body.addView(rg);
+        c.body.addView(etCmd.layout);
+        c.body.addView(run);
+        c.body.addView(tvStatus);
+        content.addView(c.view);
     }
 
-    private void runInTermux() {
-        String projectPath = binding.etProjectPath.getText() != null
-                ? binding.etProjectPath.getText().toString().trim()
-                : "";
-
-        if (projectPath.isEmpty()) {
-            showStatus(getString(com.wanderstest3.termuxjavautils.R.string.termux_path_empty));
+    private void run() {
+        String path = etPath.get();
+        if (path.isEmpty()) {
+            etPath.layout.setError("Informe a pasta do projeto");
             return;
         }
-
-        if (!isTermuxInstalled()) {
-            showStatus(getString(com.wanderstest3.termuxjavautils.R.string.termux_not_installed));
+        etPath.layout.setError(null);
+        if (!TermuxBridge.isInstalled(this)) {
+            tvStatus.setText("✗ " + getString(R.string.termux_not_installed));
             return;
         }
-
-        String command = buildCommand(projectPath);
-        sendToTermux(command, projectPath);
-    }
-
-    private String buildCommand(String projectPath) {
-        String customCmd = binding.etCustomCmd.getText() != null
-                ? binding.etCustomCmd.getText().toString().trim()
-                : "";
-
-        if (!customCmd.isEmpty()) {
-            return "cd " + projectPath + " && " + customCmd;
+        if (!TermuxBridge.hasPermission(this)) {
+            tvStatus.setText("✗ Falta a permissão de executar comandos no Termux. Abra Preparar Termux.");
+            return;
         }
-
-        int checkedId = binding.rgBuildType.getCheckedRadioButtonId();
-        if (checkedId == com.wanderstest3.termuxjavautils.R.id.rb_jar) {
-            return "cd " + projectPath + " && ./gradlew build";
-        }
-        return "cd " + projectPath + " && ./gradlew assembleRelease";
-    }
-
-    private void sendToTermux(String command, String workDir) {
-        Intent intent = new Intent(TERMUX_RUN_COMMAND);
-        intent.setPackage(TERMUX_PACKAGE);
-        intent.putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash");
-        intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[]{"-c", command});
-        intent.putExtra("com.termux.RUN_COMMAND_WORKDIR", workDir);
-        intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND", false);
-
+        int id = rg.getCheckedRadioButtonId();
+        String cmd = id == ID_JAR ? "./gradlew build"
+                : id == ID_CUSTOM && !etCmd.get().isEmpty() ? etCmd.get() : "./gradlew assembleRelease";
+        String full = "cd " + dir(path) + " && " + cmd + "; echo; echo \"[fim] código de saída: $?\"";
         try {
-            startActivity(intent);
-            showStatus(getString(com.wanderstest3.termuxjavautils.R.string.termux_launched));
+            TermuxBridge.run(this, full, false, "Termux Java Utils", null);
+            tvStatus.setText("✓ Comando enviado. O Termux foi aberto para mostrar a execução.");
         } catch (Exception e) {
-            showStatus("Erro: " + e.getMessage());
+            tvStatus.setText("✗ " + e.getMessage()
+                    + "\nConfirme a permissão e allow-external-apps em Preparar Termux.");
         }
     }
 
-    private boolean isTermuxInstalled() {
-        try {
-            getPackageManager().getPackageInfo(TERMUX_PACKAGE, 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
-        }
-    }
-
-    private void showStatus(String message) {
-        binding.tvStatus.setText(message);
-        binding.tvStatus.setVisibility(View.VISIBLE);
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    private static String dir(String p) {
+        String q = p.startsWith("~") ? "$HOME" + p.substring(1) : p;
+        return "\"" + q.replace("\"", "\\\"") + "\"";
     }
 }

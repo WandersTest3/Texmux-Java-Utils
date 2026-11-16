@@ -1,132 +1,124 @@
 package com.wanderstest3.termuxjavautils.ui.scripts;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
-import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
-import com.wanderstest3.termuxjavautils.R;
-import com.wanderstest3.termuxjavautils.databinding.ActivityScriptsBinding;
+import android.widget.RadioGroup;
+import android.widget.TextView;
+import com.google.android.material.button.MaterialButton;
+import com.wanderstest3.termuxjavautils.termux.TermuxBridge;
+import com.wanderstest3.termuxjavautils.ui.common.BaseActivity;
+import com.wanderstest3.termuxjavautils.ui.common.Ui;
 
-public class ScriptsActivity extends AppCompatActivity {
+public class ScriptsActivity extends BaseActivity {
 
-    private static final String TERMUX_PACKAGE = "com.termux";
-    private static final String TERMUX_RUN_COMMAND = "com.termux.RUN_COMMAND";
+    private static final int ID_APK = 8001;
+    private static final int ID_JAR = 8002;
+    private static final int ID_CUSTOM = 8003;
 
-    private ActivityScriptsBinding binding;
-    private String generatedScript = "";
+    private Ui.Input etName;
+    private Ui.Input etPath;
+    private RadioGroup rg;
+    private Ui.Card outputCard;
+    private TextView tvOutput;
+    private TextView tvStatus;
+    private String script = "";
+
+    @Override
+    protected String screenTitle() {
+        return "Gerador de scripts";
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        binding = ActivityScriptsBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        content.addView(ui.hint("Gera um script bash pronto para o Termux (com Java configurado e aviso de erro). "
+                + "Copie e cole no Termux ou envie direto."));
 
-        binding.btnBack.setOnClickListener(v -> finish());
-        binding.btnGenerate.setOnClickListener(v -> generateScript());
-        binding.btnCopy.setOnClickListener(v -> copyScript());
-        binding.btnSendTermux.setOnClickListener(v -> sendToTermux());
+        Ui.Card c = ui.card("Configuração", null);
+        etName = ui.input("Nome do projeto", "Só para identificar o script.", "MeuApp");
+        etPath = ui.input("Pasta no Termux", "~ é a pasta inicial do Termux.", "~/projects/MeuApp");
+        rg = ui.radioGroup();
+        rg.addView(ui.radio("APK Release", ID_APK));
+        rg.addView(ui.radio("JAR / mod", ID_JAR));
+        rg.addView(ui.radio("Personalizado (editável depois de copiar)", ID_CUSTOM));
+        rg.check(ID_APK);
+        MaterialButton gen = ui.button("Gerar script");
+        gen.setOnClickListener(v -> generate());
+        c.body.addView(etName.layout);
+        c.body.addView(etPath.layout);
+        c.body.addView(rg);
+        c.body.addView(gen);
+        content.addView(c.view);
+
+        outputCard = ui.card("Script gerado", null);
+        tvOutput = ui.mono("");
+        MaterialButton copy = ui.outlined("Copiar");
+        MaterialButton send = ui.button("Enviar ao Termux");
+        tvStatus = ui.hint("");
+        copy.setOnClickListener(v -> Ui.copy(this, "build_script", script));
+        send.setOnClickListener(v -> send());
+        outputCard.body.addView(tvOutput);
+        outputCard.body.addView(copy);
+        outputCard.body.addView(send);
+        outputCard.body.addView(tvStatus);
+        outputCard.view.setVisibility(View.GONE);
+        content.addView(outputCard.view);
     }
 
-    private void generateScript() {
-        String projectName = binding.etProjectName.getText() != null
-                ? binding.etProjectName.getText().toString().trim() : "";
-        String projectPath = binding.etProjectPath.getText() != null
-                ? binding.etProjectPath.getText().toString().trim() : "";
-
-        if (projectName.isEmpty()) {
-            Toast.makeText(this, R.string.scripts_name_empty, Toast.LENGTH_SHORT).show();
+    private void generate() {
+        String name = etName.get();
+        if (name.isEmpty()) {
+            etName.layout.setError("Informe o nome do projeto");
             return;
         }
-
-        int checkedId = binding.rgScriptType.getCheckedRadioButtonId();
-        generatedScript = buildScript(checkedId, projectName, projectPath);
-
-        binding.tvScriptOutput.setText(generatedScript);
-        binding.cardOutput.setVisibility(View.VISIBLE);
-    }
-
-    private String buildScript(int typeId, String name, String path) {
-        String cdPart = path.isEmpty() ? "" : "cd \"" + path + "\"\n";
-
-        if (typeId == R.id.rb_apk) {
-            return "#!/bin/bash\n"
-                    + "# Build APK — " + name + "\n"
-                    + "set -e\n"
-                    + cdPart
-                    + "echo \"[BUILD] Limpando projeto…\"\n"
-                    + "./gradlew clean\n"
-                    + "echo \"[BUILD] Compilando APK release…\"\n"
-                    + "./gradlew assembleRelease\n"
-                    + "echo \"[BUILD] Concluído.\"\n"
-                    + "find . -name \"*.apk\" -path \"*/release/*\" | head -5\n";
+        etName.layout.setError(null);
+        String path = etPath.get();
+        int id = rg.getCheckedRadioButtonId();
+        StringBuilder sb = new StringBuilder();
+        sb.append("#!/data/data/com.termux/files/usr/bin/bash\n");
+        sb.append("set -e\n");
+        sb.append("export JAVA_HOME=\"$PREFIX/lib/jvm/java-17-openjdk\"\n");
+        sb.append("export PATH=\"$JAVA_HOME/bin:$PATH\"\n");
+        sb.append("export ANDROID_HOME=\"$HOME/android-sdk\"\n");
+        sb.append("export ANDROID_SDK_ROOT=\"$ANDROID_HOME\"\n");
+        if (!path.isEmpty()) {
+            String p = path.startsWith("~") ? "$HOME" + path.substring(1) : path;
+            sb.append("cd \"").append(p).append("\"\n");
         }
-
-        if (typeId == R.id.rb_jar) {
-            return "#!/bin/bash\n"
-                    + "# Build JAR/Mod — " + name + "\n"
-                    + "set -e\n"
-                    + cdPart
-                    + "echo \"[BUILD] Limpando projeto…\"\n"
-                    + "./gradlew clean\n"
-                    + "echo \"[BUILD] Compilando mod…\"\n"
-                    + "./gradlew build\n"
-                    + "echo \"[BUILD] Concluído.\"\n"
-                    + "find . -name \"*.jar\" -path \"*/build/libs/*\" | head -5\n";
+        sb.append("chmod +x gradlew\n");
+        sb.append("echo \"[BUILD] ").append(name.replace("\"", "")).append("\"\n");
+        if (id == ID_JAR) {
+            sb.append("./gradlew build --no-daemon\n");
+            sb.append("find . -path '*/build/libs/*.jar' | head -5\n");
+        } else if (id == ID_CUSTOM) {
+            sb.append("./gradlew build --no-daemon\n");
+        } else {
+            sb.append("./gradlew assembleRelease --no-daemon -Pandroid.aapt2FromMavenOverride=\"$PREFIX/bin/aapt2\"\n");
+            sb.append("find . -path '*/build/outputs/apk/release/*.apk' | head -5\n");
         }
-
-        return "#!/bin/bash\n"
-                + "# Build personalizado — " + name + "\n"
-                + "set -e\n"
-                + cdPart
-                + "echo \"[BUILD] Iniciando…\"\n"
-                + "# Insira seu comando aqui\n"
-                + "./gradlew build\n"
-                + "echo \"[BUILD] Concluído.\"\n";
+        sb.append("echo \"[BUILD] Concluído.\"\n");
+        script = sb.toString();
+        tvOutput.setText(script);
+        outputCard.view.setVisibility(View.VISIBLE);
     }
 
-    private void copyScript() {
-        if (generatedScript.isEmpty()) return;
-        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipData clip = ClipData.newPlainText("build_script", generatedScript);
-        clipboard.setPrimaryClip(clip);
-        Toast.makeText(this, R.string.scripts_copied, Toast.LENGTH_SHORT).show();
-    }
-
-    private void sendToTermux() {
-        if (generatedScript.isEmpty()) return;
-
-        if (!isTermuxInstalled()) {
-            Toast.makeText(this, R.string.termux_not_installed, Toast.LENGTH_SHORT).show();
+    private void send() {
+        if (script.isEmpty()) return;
+        if (!TermuxBridge.isInstalled(this)) {
+            tvStatus.setText("✗ Termux não está instalado.");
             return;
         }
-
-        Intent intent = new Intent(TERMUX_RUN_COMMAND);
-        intent.setPackage(TERMUX_PACKAGE);
-        intent.putExtra("com.termux.RUN_COMMAND_PATH",
-                "/data/data/com.termux/files/usr/bin/bash");
-        intent.putExtra("com.termux.RUN_COMMAND_ARGUMENTS",
-                new String[]{"-c", generatedScript});
-        intent.putExtra("com.termux.RUN_COMMAND_BACKGROUND", false);
-
+        if (!TermuxBridge.hasPermission(this)) {
+            tvStatus.setText("✗ Falta a permissão de executar comandos. Abra Preparar Termux.");
+            return;
+        }
         try {
-            startActivity(intent);
-            Toast.makeText(this, R.string.scripts_sent, Toast.LENGTH_SHORT).show();
+            String b64 = java.util.Base64.getEncoder().encodeToString(
+                    script.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            TermuxBridge.run(this, "echo " + b64 + " | base64 -d | bash", false, "Script de build", null);
+            tvStatus.setText("✓ Script enviado ao Termux.");
         } catch (Exception e) {
-            Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private boolean isTermuxInstalled() {
-        try {
-            getPackageManager().getPackageInfo(TERMUX_PACKAGE, 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
+            tvStatus.setText("✗ " + e.getMessage());
         }
     }
 }
