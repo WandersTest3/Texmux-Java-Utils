@@ -1,0 +1,40 @@
+<resources>
+    <style name="Theme.TermuxJavaUtils" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/purple_primary</item>
+        <item name="colorPrimaryDark">@color/purple_dark</item>
+        <item name="colorAccent">@color/purple_light</item>
+        <item name="android:windowBackground">@color/purple_surface</item>
+        <item name="android:statusBarColor">@color/purple_dark</item>
+        <item name="android:navigationBarColor">@color/purple_surface</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="materialButtonStyle">@style/Widget.TermuxJavaUtils.Button</item>
+    </style>
+
+    <style name="Widget.TermuxJavaUtils.Button" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/purple_primary</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+
+    <style name="Widget.TermuxJavaUtils.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="strokeColor">@color/purple_light</item>
+        <item name="android:textColor">@color/purple_light</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+
+    <style name="Widget.TermuxJavaUtils.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/card_background</item>
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">4dp</item>
+    </style>
+
+    <style name="TextAppearance.TermuxJavaUtils.Title" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.TermuxJavaUtils.Subtitle" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+</resources>

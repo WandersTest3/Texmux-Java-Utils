@@ -1,0 +1,3 @@
+-keep class com.wanderstest3.termuxjavautils.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**

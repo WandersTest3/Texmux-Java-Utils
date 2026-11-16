@@ -1,0 +1,18 @@
+<resources>
+    <color name="purple_primary">#57197F</color>
+    <color name="purple_dark">#3A1055</color>
+    <color name="purple_light">#8B4DB5</color>
+    <color name="purple_surface">#1E0A2E</color>
+    <color name="purple_on_surface">#F3E8FF</color>
+    <color name="accent_green">#4CAF50</color>
+    <color name="accent_orange">#FF9800</color>
+    <color name="accent_blue">#2196F3</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#CCBBDD</color>
+    <color name="card_background">#2A0D40</color>
+    <color name="divider">#4A2A6A</color>
+    <color name="error">#CF6679</color>
+    <color name="status_running">#FF9800</color>
+    <color name="status_success">#4CAF50</color>
+    <color name="status_failure">#CF6679</color>
+</resources>

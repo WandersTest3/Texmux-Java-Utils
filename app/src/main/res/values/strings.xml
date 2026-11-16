@@ -1,0 +1,57 @@
+<resources>
+    <string name="app_name">Termux Java Utils</string>
+
+    <!-- Main -->
+    <string name="main_title">Termux Java Utils</string>
+    <string name="main_subtitle">Escolha uma abordagem de build</string>
+    <string name="btn_termux">Termux Wrapper</string>
+    <string name="btn_cicd">GitHub Actions CI/CD</string>
+    <string name="btn_scripts">Gerador de Scripts</string>
+    <string name="desc_termux">Dispara comandos Gradle direto no Termux instalado</string>
+    <string name="desc_cicd">Envia projeto ao GitHub Actions e baixa o artefato</string>
+    <string name="desc_scripts">Gera e gerencia scripts de build reutilizáveis</string>
+
+    <!-- Termux -->
+    <string name="termux_title">Termux Wrapper</string>
+    <string name="termux_project_path">Caminho do projeto</string>
+    <string name="termux_project_hint">/data/data/com.termux/files/home/meu-projeto</string>
+    <string name="termux_build_type">Tipo de build</string>
+    <string name="termux_apk">APK (Android)</string>
+    <string name="termux_jar">JAR / Mod (Java)</string>
+    <string name="termux_custom_cmd">Comando personalizado</string>
+    <string name="termux_custom_hint">./gradlew assembleRelease</string>
+    <string name="termux_btn_run">Executar no Termux</string>
+    <string name="termux_not_installed">Termux não está instalado</string>
+    <string name="termux_launched">Comando enviado ao Termux</string>
+    <string name="termux_path_empty">Informe o caminho do projeto</string>
+
+    <!-- CI/CD -->
+    <string name="cicd_title">GitHub Actions CI/CD</string>
+    <string name="cicd_token_hint">GitHub Personal Access Token</string>
+    <string name="cicd_owner_hint">dono/organização</string>
+    <string name="cicd_repo_hint">nome-do-repositorio</string>
+    <string name="cicd_branch_hint">main</string>
+    <string name="cicd_workflow_hint">build.yml</string>
+    <string name="cicd_btn_trigger">Disparar Workflow</string>
+    <string name="cicd_btn_status">Verificar Status</string>
+    <string name="cicd_btn_download">Baixar Artefato</string>
+    <string name="cicd_status_idle">Aguardando…</string>
+    <string name="cicd_triggered">Workflow disparado</string>
+    <string name="cicd_error_fields">Preencha todos os campos obrigatórios</string>
+    <string name="cicd_save_token">Salvar token</string>
+    <string name="cicd_token_saved">Token salvo</string>
+
+    <!-- Scripts -->
+    <string name="scripts_title">Gerador de Scripts</string>
+    <string name="scripts_project_hint">Nome do projeto</string>
+    <string name="scripts_path_hint">Caminho no Termux</string>
+    <string name="scripts_type_apk">APK Release</string>
+    <string name="scripts_type_jar">JAR / Mod</string>
+    <string name="scripts_type_custom">Personalizado</string>
+    <string name="scripts_btn_generate">Gerar Script</string>
+    <string name="scripts_btn_copy">Copiar</string>
+    <string name="scripts_btn_send">Enviar ao Termux</string>
+    <string name="scripts_copied">Script copiado</string>
+    <string name="scripts_sent">Script enviado ao Termux</string>
+    <string name="scripts_name_empty">Informe o nome do projeto</string>
+</resources>
