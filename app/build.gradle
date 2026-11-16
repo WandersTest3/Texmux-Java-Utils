@@ -10,12 +10,33 @@ android {
         applicationId "com.wanderstest3.termuxjavautils"
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName "1.0.1"
+        versionCode 3
+        versionName "1.0.2"
+    }
+
+    def storeFile = rootProject.file(System.getenv('TJU_KEYSTORE') ?: 'tju.jks')
+    def readSecret = { String name ->
+        def f = rootProject.file(name)
+        f.exists() ? f.text.trim() : null
+    }
+    def storePass = System.getenv('TJU_STORE_PASSWORD') ?: readSecret('.store_password.txt')
+    def keyPass = System.getenv('TJU_KEY_PASSWORD') ?: readSecret('.key_password.txt') ?: storePass
+    def keyAlias = System.getenv('TJU_KEY_ALIAS') ?: readSecret('.key_alias.txt')
+
+    signingConfigs {
+        if (storeFile.exists() && storePass && keyAlias) {
+            release {
+                storeFile storeFile
+                storePassword storePass
+                keyAlias keyAlias
+                keyPassword keyPass
+            }
+        }
     }
 
     buildTypes {
         release {
+            signingConfig signingConfigs.findByName('release') ?: signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
