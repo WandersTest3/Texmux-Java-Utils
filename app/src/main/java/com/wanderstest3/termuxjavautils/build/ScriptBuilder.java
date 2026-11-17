@@ -45,6 +45,22 @@ public final class ScriptBuilder {
         return sb.toString();
     }
 
+    public static String decompileScript(DecompileRequest r, String id, String body) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("#!/data/data/com.termux/files/usr/bin/bash\n");
+        sb.append(var("TJU_ID", id));
+        sb.append(var("DEC_INPUT", nz(r.input).trim()));
+        sb.append(var("DEC_MODE", orDefault(r.mode, DecompileRequest.MODE_JAVA)));
+        sb.append(var("DEC_DEOBF", r.deobf ? "1" : "0"));
+        sb.append(var("DEC_AS_FOLDER", r.asFolder ? "1" : "0"));
+        sb.append(var("JAVA_HOME_OVERRIDE", nz(r.javaHome).trim()));
+        sb.append(var("DOWNLOAD_DIR", orDefault(r.downloadDir, "/storage/emulated/0/Download")));
+        sb.append(var("OUT_DIR", orDefault(r.outputDir, "/storage/emulated/0/Download")));
+        sb.append(var("WORK_BASE", orDefault(r.workDir, "$HOME/decompiled")));
+        sb.append(body);
+        return sb.toString();
+    }
+
     public static String commandJobScript(String id, String title, String command) {
         StringBuilder sb = new StringBuilder();
         sb.append("#!/data/data/com.termux/files/usr/bin/bash\n");
@@ -71,7 +87,7 @@ public final class ScriptBuilder {
         return sb.toString();
     }
 
-    public static String launchCommand(String id, String script, String token) {
+    public static String launchCommand(String id, String script, String token, String kind) {
         String b64 = Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_8));
         StringBuilder sb = new StringBuilder();
         sb.append("D=\"$HOME/.tju/jobs/").append(id).append("\"; ");
@@ -80,9 +96,10 @@ public final class ScriptBuilder {
         if (token != null && !token.isEmpty()) {
             sb.append("(umask 077; printf %s ").append(quote(token)).append(" > \"$D/token\"); ");
         }
+        sb.append("echo ").append(quote(kind == null ? "build" : kind)).append(" > \"$D/kind\"; ");
         sb.append("echo ").append(id).append(" > \"$HOME/.tju/last\"; ");
         sb.append(": > \"$D/log\"; ");
-        sb.append("echo \"RUNNING 0/5 Iniciando\" > \"$D/status\"; ");
+        sb.append("echo \"RUNNING 0/0 Iniciando\" > \"$D/status\"; ");
         sb.append("nohup bash \"$D/build.sh\" > \"$D/log\" 2>&1 < /dev/null & ");
         sb.append("echo started");
         return sb.toString();
@@ -102,6 +119,7 @@ public final class ScriptBuilder {
         }
         return dir
                 + "echo \"ID=$ID\"; "
+                + "echo \"KIND=$(cat \"$D/kind\" 2>/dev/null)\"; "
                 + "cat \"$D/status\" 2>/dev/null || echo NOSTATUS; "
                 + "echo '" + JobSnapshot.SEP + "'; "
                 + "cat \"$D/artifacts\" 2>/dev/null; "
@@ -124,6 +142,14 @@ public final class ScriptBuilder {
         String d = orDefault(downloadDir, "/storage/emulated/0/Download");
         return "D=" + quote(d) + "; D=\"${D/#\\$HOME/$HOME}\"; "
                 + "ls -1t \"$D\"/*.zip 2>/dev/null | head -30 | sed 's#.*/##'";
+    }
+
+    public static String listFilesCommand(String downloadDir, String... exts) {
+        String d = orDefault(downloadDir, "/storage/emulated/0/Download");
+        StringBuilder globs = new StringBuilder();
+        for (String e : exts) globs.append(" \"$D\"/*.").append(e);
+        return "D=" + quote(d) + "; D=\"${D/#\\$HOME/$HOME}\"; "
+                + "ls -1t" + globs + " 2>/dev/null | head -40 | sed 's#.*/##'";
     }
 
     private static String nz(String s) {

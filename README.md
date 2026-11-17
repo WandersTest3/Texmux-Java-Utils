@@ -12,6 +12,9 @@ App Android para compilar apps Android (APK) e mods Java (JAR) direto do celular
 
 O app detecta sozinho a raiz do projeto, o módulo Android (`com.android.application`), a tarefa Gradle e se é um app ou um mod.
 
+### Escolher arquivos
+Em vez de digitar nomes, use os botões **Escolher ZIP no celular** e **Escolher ZIP de assinatura no celular**. Arquivos que já estão na memória interna são usados no lugar; os de outros apps (Drive, etc.) são copiados para `Downloads/TermuxJavaUtils`, de onde o Termux os lê. Também dá para compartilhar ou abrir um APK/JAR/ZIP com o Termux Java Utils em qualquer gerenciador de arquivos.
+
 ### Quando falha
 O app lê o log e explica o motivo com passos de correção, e oferece correção automática quando possível. Exemplos reconhecidos: Java ausente ou versão errada, `unzip`/`git` faltando, sem permissão de Downloads, ZIP não encontrado ou corrompido, Gradle Wrapper ausente, SDK/plataforma/build-tools ausentes, licenças não aceitas, aapt2 incompatível, falta de memória, rede, dependência/plugin não encontrado, senha de keystore errada e erros de compilação (arquivo:linha).
 
@@ -22,6 +25,12 @@ O `gradlew` é executado com `sh ./gradlew`, então não depende de `/usr/bin/en
 
 ### Perfis
 Salve as configurações de um projeto para compilar com um toque. Há um perfil de exemplo (`Pojarush_Test3`) que você pode editar ou excluir.
+
+## Descompilar
+Escolha um APK, JAR (inclusive mods), AAR, DEX ou ZIP e o app roda no Termux, em segundo plano:
+- **Java (jadx)** para qualquer formato; **Smali + recursos (apktool)** e **Java + Smali** só para APK;
+- **Converter para JAR (dex2jar)** para APK/DEX; **Só extrair** o conteúdo.
+O app instala o que faltar (`pkg install jadx apktool dex2jar zip`) e salva `<nome>-decompilado.zip` (ou uma pasta) em Downloads, com uma cópia em `~/decompiled`. Use apenas em arquivos que você tem direito de analisar.
 
 ## Preparar Termux (uma vez)
 

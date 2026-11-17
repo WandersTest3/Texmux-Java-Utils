@@ -10,6 +10,7 @@ import com.wanderstest3.termuxjavautils.ui.build.BuildActivity;
 import com.wanderstest3.termuxjavautils.ui.cicd.CicdActivity;
 import com.wanderstest3.termuxjavautils.ui.common.BaseActivity;
 import com.wanderstest3.termuxjavautils.ui.common.Ui;
+import com.wanderstest3.termuxjavautils.ui.decompile.DecompileActivity;
 import com.wanderstest3.termuxjavautils.ui.scripts.ScriptsActivity;
 import com.wanderstest3.termuxjavautils.ui.setup.SetupActivity;
 import com.wanderstest3.termuxjavautils.ui.termux.TermuxActivity;
@@ -32,7 +33,7 @@ public class MainActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         content.addView(ui.hint("Compile apps Android e mods Java direto do celular. "
-                + "Dê o nome de um ZIP da pasta Downloads ou o link de um repositório e o app faz o resto, "
+                + "Escolha um ZIP no celular ou cole o link de um repositório e o app faz o resto, "
                 + "avisando quando terminar e explicando qualquer erro."));
         statusHolder = ui.column();
         content.addView(statusHolder);
@@ -40,6 +41,9 @@ public class MainActivity extends BaseActivity {
         addCard("Compilar projeto",
                 "O principal. Escolha um ZIP em Downloads ou cole o link do repositório. O app baixa, compila no Termux em segundo plano, copia o APK/JAR para Downloads e, se falhar, diz exatamente por quê.",
                 "Compilar", BuildActivity.class, true);
+        addCard("Descompilar",
+                "Abre APK, JAR (mods), AAR, DEX ou ZIP e gera o código Java ou Smali para você ler. Escolha o arquivo na memória do celular; o app instala jadx/apktool no Termux se precisar.",
+                "Descompilar", DecompileActivity.class, false);
         addCard("Preparar Termux",
                 "Configuração de uma vez só: libera a comunicação com o Termux e instala Java, unzip, git e aapt2 automaticamente.",
                 "Preparar", SetupActivity.class, false);

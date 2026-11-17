@@ -33,6 +33,30 @@
 
         <activity android:name=".ui.build.BuildActivity" android:exported="false"
             android:launchMode="singleTop" />
+        <activity android:name=".ui.decompile.DecompileActivity" android:exported="false"
+            android:launchMode="singleTop" />
+        <activity android:name=".ui.decompile.ImportActivity" android:exported="true"
+            android:label="Termux Java Utils"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+                <data android:mimeType="application/java-archive" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/vnd.android.package-archive" />
+                <data android:mimeType="application/java-archive" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+            </intent-filter>
+        </activity>
         <activity android:name=".ui.setup.SetupActivity" android:exported="false" />
         <activity android:name=".ui.termux.TermuxActivity" android:exported="false" />
         <activity android:name=".ui.cicd.CicdActivity" android:exported="false" />

@@ -287,7 +287,7 @@ public class SetupActivity extends BaseActivity implements JobManager.Listener {
                     String id = "i" + System.currentTimeMillis();
                     String script = ScriptBuilder.commandJobScript(id, "Instalando " + pkgs,
                             "pkg update -y; pkg install -y " + pkgs);
-                    BuildService.startJob(this, id, "Instalando " + pkgs, script, "", false,
+                    BuildService.startJob(this, id, "Instalando " + pkgs, script, "", JobManager.KIND_COMMAND,
                             ProfileStore.loadLast(this).sdkDir);
                 })
                 .setNegativeButton("Cancelar", null)

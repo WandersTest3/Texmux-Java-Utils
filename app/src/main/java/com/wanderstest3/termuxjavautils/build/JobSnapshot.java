@@ -10,6 +10,7 @@ public final class JobSnapshot {
     public enum State { RUNNING, SUCCESS, FAILED, CANCELLED, UNKNOWN }
 
     public String id = "";
+    public String kind = "";
     public State state = State.UNKNOWN;
     public int step = 0;
     public int total = 0;
@@ -33,6 +34,8 @@ public final class JobSnapshot {
             line = line.trim();
             if (line.startsWith("ID=")) {
                 s.id = line.substring(3).trim();
+            } else if (line.startsWith("KIND=")) {
+                s.kind = line.substring(5).trim();
             } else if (line.startsWith("RUNNING")) {
                 s.state = State.RUNNING;
                 String rest = line.substring(7).trim();

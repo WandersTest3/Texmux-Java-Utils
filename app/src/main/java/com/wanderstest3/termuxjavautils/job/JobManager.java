@@ -10,8 +10,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class JobManager {
 
+    public static final String KIND_BUILD = "build";
+    public static final String KIND_COMMAND = "command";
+    public static final String KIND_DECOMPILE = "decompile";
+
     public static final class Job {
         public String id = "";
+        public String kind = KIND_BUILD;
         public String title = "";
         public boolean isBuild = true;
         public String sdkDir = "";

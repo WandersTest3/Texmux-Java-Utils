@@ -20,6 +20,7 @@ import com.wanderstest3.termuxjavautils.build.JobSnapshot;
 import com.wanderstest3.termuxjavautils.build.ScriptBuilder;
 import com.wanderstest3.termuxjavautils.termux.TermuxBridge;
 import com.wanderstest3.termuxjavautils.ui.build.BuildActivity;
+import com.wanderstest3.termuxjavautils.ui.decompile.DecompileActivity;
 
 public class BuildService extends Service {
 
@@ -37,13 +38,13 @@ public class BuildService extends Service {
     private volatile String currentId = "";
 
     public static void startJob(Context ctx, String id, String title, String script, String token,
-                                boolean isBuild, String sdkDir) {
+                                String kind, String sdkDir) {
         Intent i = new Intent(ctx, BuildService.class).setAction(ACTION_START);
         i.putExtra("id", id);
         i.putExtra("title", title);
         i.putExtra("script", script);
         i.putExtra("token", token == null ? "" : token);
-        i.putExtra("isBuild", isBuild);
+        i.putExtra("kind", kind == null ? JobManager.KIND_BUILD : kind);
         i.putExtra("sdkDir", sdkDir == null ? "" : sdkDir);
         ContextCompat.startForegroundService(ctx, i);
     }
@@ -85,11 +86,11 @@ public class BuildService extends Service {
         final String title = attach ? "Último build" : intent.getStringExtra("title");
         final String script = intent.getStringExtra("script");
         final String token = intent.getStringExtra("token");
-        final boolean isBuild = attach || intent.getBooleanExtra("isBuild", true);
+        final String kind = attach ? JobManager.KIND_BUILD : intent.getStringExtra("kind");
         final String sdkDir = intent.getStringExtra("sdkDir");
         cancelRequested = false;
         currentId = id;
-        worker = new Thread(() -> runJob(id, title, script, token, isBuild, sdkDir, attach), "tju-job");
+        worker = new Thread(() -> runJob(id, title, script, token, kind, sdkDir, attach), "tju-job");
         worker.start();
         return START_NOT_STICKY;
     }
@@ -122,12 +123,13 @@ public class BuildService extends Service {
         }).start();
     }
 
-    private void runJob(String id, String title, String script, String token, boolean isBuild,
+    private void runJob(String id, String title, String script, String token, String kind,
                         String sdkDir, boolean attach) {
         JobManager.Job job = new JobManager.Job();
         job.id = id;
         job.title = title;
-        job.isBuild = isBuild;
+        job.kind = kind == null ? JobManager.KIND_BUILD : kind;
+        job.isBuild = !JobManager.KIND_COMMAND.equals(job.kind);
         job.sdkDir = sdkDir == null ? "" : sdkDir;
         JobManager.publish(job);
         DiagnosisEngine engine = new DiagnosisEngine(sdkDir);
@@ -140,7 +142,7 @@ public class BuildService extends Service {
                 synthetic = "##TJU_FAIL## TERMUX_PERMISSION";
             } else {
                 TermuxBridge.Result r = TermuxBridge.runBlocking(this,
-                        ScriptBuilder.launchCommand(id, script, token), 40);
+                        ScriptBuilder.launchCommand(id, script, token, job.kind), 40);
                 if (r == null) {
                     synthetic = "##TJU_FAIL## TERMUX_NO_RESPONSE";
                 } else if (r.errmsg.startsWith("SECURITY:")) {
@@ -179,6 +181,10 @@ public class BuildService extends Service {
                 }
             }
             if (!snap.id.isEmpty()) job.id = snap.id;
+            if (attach && !snap.kind.isEmpty()) {
+                job.kind = snap.kind;
+                job.isBuild = !JobManager.KIND_COMMAND.equals(job.kind);
+            }
             job.snapshot = snap;
             JobManager.publish(job);
             updateProgressNotification(job, snap);
@@ -240,21 +246,28 @@ public class BuildService extends Service {
         nm.createNotificationChannel(r);
     }
 
-    private PendingIntent openIntent() {
-        Intent i = new Intent(this, BuildActivity.class);
+    private PendingIntent openIntent(String kind) {
+        Class<?> target = JobManager.KIND_DECOMPILE.equals(kind) ? DecompileActivity.class : BuildActivity.class;
+        Intent i = new Intent(this, target);
         i.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(this, 0, i,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private Notification buildProgressNotification(String text, int step, int total) {
+        return buildProgressNotification(JobManager.KIND_BUILD, text, step, total);
+    }
+
+    private Notification buildProgressNotification(String kind, String text, int step, int total) {
+        String head = JobManager.KIND_DECOMPILE.equals(kind) ? "Descompilando…"
+                : JobManager.KIND_COMMAND.equals(kind) ? "Executando no Termux…" : "Compilando…";
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_PROGRESS)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle("Compilando…")
+                .setContentTitle(head)
                 .setContentText(text)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
-                .setContentIntent(openIntent());
+                .setContentIntent(openIntent(kind));
         if (total > 0) b.setProgress(total, step, false);
         else b.setProgress(0, 0, true);
         return b.build();
@@ -264,7 +277,7 @@ public class BuildService extends Service {
         String text = snap.stepName.isEmpty() ? job.title : "Etapa " + snap.step + "/" + snap.total + ": " + snap.stepName;
         NotificationManager nm = getSystemService(NotificationManager.class);
         try {
-            nm.notify(NOTIF_PROGRESS, buildProgressNotification(text, snap.step, snap.total));
+            nm.notify(NOTIF_PROGRESS, buildProgressNotification(job.kind, text, snap.step, snap.total));
         } catch (SecurityException ignored) {
         }
     }
@@ -274,7 +287,8 @@ public class BuildService extends Service {
         String title;
         String text;
         if (snap.state == JobSnapshot.State.SUCCESS) {
-            title = job.isBuild ? "✓ Build concluído" : "✓ Comando concluído";
+            title = JobManager.KIND_DECOMPILE.equals(job.kind) ? "✓ Descompilação concluída"
+                    : job.isBuild ? "✓ Build concluído" : "✓ Comando concluído";
             if (!snap.artifacts.isEmpty()) {
                 String first = snap.artifacts.get(0);
                 text = first.substring(first.lastIndexOf('/') + 1)
@@ -284,7 +298,9 @@ public class BuildService extends Service {
                 text = job.title;
             }
         } else {
-            title = snap.state == JobSnapshot.State.CANCELLED ? "Build cancelado" : "✗ Build falhou";
+            boolean dec = JobManager.KIND_DECOMPILE.equals(job.kind);
+            title = snap.state == JobSnapshot.State.CANCELLED ? (dec ? "Cancelado" : "Build cancelado")
+                    : (dec ? "✗ A descompilação falhou" : "✗ Build falhou");
             Diagnosis first = null;
             for (Diagnosis d : job.diagnoses) {
                 if (d.severity == Diagnosis.Severity.ERROR) { first = d; break; }
@@ -297,7 +313,7 @@ public class BuildService extends Service {
                 .setContentText(text)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
                 .setAutoCancel(true)
-                .setContentIntent(openIntent())
+                .setContentIntent(openIntent(job.kind))
                 .build();
         try {
             getSystemService(NotificationManager.class).notify(NOTIF_RESULT, n);

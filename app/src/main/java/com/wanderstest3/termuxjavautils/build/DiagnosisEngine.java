@@ -232,6 +232,52 @@ public final class DiagnosisEngine {
                         "Toque em \"Retomar último build\" para tentar reconectar.",
                         "Desative a otimização de bateria do Termux e deste app."));
                 break;
+            case "DEC_INPUT_NOT_FOUND":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Arquivo não encontrado: " + detail,
+                        "O Termux não achou esse arquivo.",
+                        "Use o botão \"Escolher arquivo\" para selecioná-lo na memória do celular.",
+                        "Se digitou o nome, confira maiúsculas e a extensão.",
+                        "No log acima aparecem os arquivos mais recentes de Downloads."));
+                break;
+            case "DEC_INPUT_CORRUPT":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "O arquivo parece corrompido: " + detail,
+                        "Não foi possível abrir o conteúdo como ZIP/APK/JAR.",
+                        "Baixe ou copie o arquivo de novo.",
+                        "APKs divididos (.apks/.xapk) precisam ser extraídos antes: descompile o APK base."));
+                break;
+            case "DEC_UNSUPPORTED":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Formato não suportado: ." + detail,
+                        "O app descompila APK, JAR, AAR, DEX, CLASS e ZIP.",
+                        "Escolha um arquivo com uma dessas extensões."));
+                break;
+            case "DEC_MODE_UNSUPPORTED":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Essa opção não funciona com arquivos ." + detail,
+                        "A conversão para JAR (dex2jar) só aceita APK e DEX.",
+                        "Escolha \"Código Java (jadx)\" para JAR, AAR e ZIP."));
+                break;
+            case "DEC_APK_ONLY":
+                put(new Diagnosis(code, Diagnosis.Severity.WARNING, "Smali só existe para APK",
+                        "O arquivo é ." + detail + ", então o app gerou apenas o Java com o jadx.",
+                        "Para obter Smali, use o APK do app."));
+                break;
+            case "DEC_PARTIAL":
+                put(new Diagnosis(code, Diagnosis.Severity.WARNING, "Descompilação parcial",
+                        detail.isEmpty() ? "Algumas classes não puderam ser convertidas." : detail,
+                        "É normal em apps ofuscados: os métodos com problema aparecem comentados no código gerado.",
+                        "Tente ativar \"Desofuscar nomes\" ou usar Smali para ver essas partes."));
+                break;
+            case "DEC_TOOL_FAILED":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "O " + detail + " não conseguiu processar o arquivo",
+                        "A ferramenta terminou sem gerar nenhum arquivo.",
+                        "Abra o log completo: ele mostra o erro do " + detail + ".",
+                        "Se o arquivo for ofuscado ou protegido, tente outro modo (Smali ou Só extrair)."));
+                break;
+            case "TOOL_INSTALL_FAILED":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Não consegui instalar o pacote \"" + detail + "\"",
+                        "O pkg do Termux falhou (sem internet, espelho fora do ar ou lista desatualizada).",
+                        "Verifique a conexão e tente \"Corrigir automaticamente\".")
+                        .fix("Atualizar e instalar " + detail, "pkg update -y && pkg install -y " + detail));
+                break;
             case "CANCELLED":
                 put(new Diagnosis(code, Diagnosis.Severity.WARNING, "Build cancelado",
                         "Você cancelou o build.", "Toque em Compilar para tentar de novo."));
@@ -255,11 +301,11 @@ public final class DiagnosisEngine {
     }
 
     private Diagnosis oomKilled() {
-        return new Diagnosis("OOM_KILLED", Diagnosis.Severity.ERROR, "O Android encerrou o Gradle (pouca memória)",
+        return new Diagnosis("OOM_KILLED", Diagnosis.Severity.ERROR, "O Android encerrou o processo (pouca memória)",
                 "O processo foi morto (código 137): falta de RAM ou o Android 12+ matou processos filhos do Termux.",
                 "Feche outros apps e tente de novo.",
                 "Em Opções do desenvolvedor, ative \"Desativar restrições de processos filhos\" (Android 12+).",
-                "Em Argumentos extras do Gradle use: -Dorg.gradle.jvmargs=-Xmx1024m --max-workers=1",
+                "Ao compilar, em Argumentos extras do Gradle use: -Dorg.gradle.jvmargs=-Xmx1024m --max-workers=1",
                 "Desative a otimização de bateria do Termux e deste app.");
     }
 

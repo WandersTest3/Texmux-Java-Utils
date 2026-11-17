@@ -5,8 +5,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,6 +29,8 @@ import com.wanderstest3.termuxjavautils.job.BuildService;
 import com.wanderstest3.termuxjavautils.job.JobManager;
 import com.wanderstest3.termuxjavautils.termux.TermuxBridge;
 import com.wanderstest3.termuxjavautils.ui.common.BaseActivity;
+import com.wanderstest3.termuxjavautils.ui.common.FilePicker;
+import com.wanderstest3.termuxjavautils.ui.common.JobPanel;
 import com.wanderstest3.termuxjavautils.ui.common.Ui;
 import com.wanderstest3.termuxjavautils.ui.setup.SetupActivity;
 import com.wanderstest3.termuxjavautils.util.Prefs;
@@ -49,8 +49,6 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
     private static final int ID_RELEASE = 9012;
     private static final int ID_DEBUG = 9013;
     private static final int ID_JAR = 9014;
-
-    private final Handler handler = new Handler(Looper.getMainLooper());
 
     private LinearLayout warnHolder;
     private RadioGroup rgSource;
@@ -78,29 +76,9 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
     private MaterialButton btnCancel;
     private MaterialButton btnResume;
 
-    private View resultCard;
-    private TextView tvStatus;
-    private TextView tvStep;
-    private LinearProgressIndicator progress;
-    private TextView tvArtifacts;
-    private LinearLayout diagHolder;
-    private ScrollView logScroll;
-    private TextView tvLog;
-    private MaterialButton btnToggleLog;
-    private MaterialButton btnCopyLog;
-    private String lastLogShown = "";
-    private boolean logVisible = false;
-
-    private final Runnable ticker = new Runnable() {
-        @Override
-        public void run() {
-            JobManager.Job j = JobManager.current();
-            if (j != null && !j.finished) {
-                updateElapsed(j);
-                handler.postDelayed(this, 1000);
-            }
-        }
-    };
+    private JobPanel panel;
+    private FilePicker zipPicker;
+    private FilePicker signPicker;
 
     @Override
     protected String screenTitle() {
@@ -133,12 +111,12 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
     protected void onStop() {
         super.onStop();
         JobManager.remove(this);
-        handler.removeCallbacks(ticker);
+        panel.stop();
         ProfileStore.saveLast(this, toRequest());
     }
 
     private void buildUi() {
-        content.addView(ui.hint("Informe de onde vem o código, toque em Compilar e pronto. "
+        content.addView(ui.hint("Escolha o ZIP do projeto (ou cole o link do repositório), toque em Compilar e pronto. "
                 + "O app roda tudo no Termux, mostra o andamento e avisa por notificação quando terminar — "
                 + "você pode usar o celular normalmente enquanto isso. Se falhar, ele explica o motivo e oferece a correção."));
 
@@ -159,16 +137,25 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
         content.addView(profiles.view);
 
         Ui.Card source = ui.card("1. Origem do código",
-                "Escolha como entregar o projeto: um ZIP que você baixou ou o link de um repositório.");
+                "Escolha o ZIP do projeto direto da memória do celular (o app o traz para o Termux) ou cole o link de um repositório.");
         rgSource = ui.radioGroup();
-        rgSource.addView(ui.radio("ZIP na pasta Downloads", ID_ZIP));
+        rgSource.addView(ui.radio("ZIP do projeto (escolher arquivo)", ID_ZIP));
         rgSource.addView(ui.radio("Link do repositório (baixa e compila sozinho)", ID_GIT));
         rgSource.setOnCheckedChangeListener((g, id) -> updateSourceVisibility());
         source.body.addView(rgSource);
 
         groupZip = ui.column();
-        etZip = ui.input("Nome do arquivo ZIP",
-                "Só o nome, como aparece em Downloads. A extensão .zip é opcional.", "Pojarush_Test3-main.zip");
+        zipPicker = new FilePicker(this, (path, name) -> {
+            etZip.set(path);
+            etZip.layout.setError(null);
+        });
+        MaterialButton btnPickZip = ui.button("Escolher ZIP no celular");
+        btnPickZip.setOnClickListener(v -> zipPicker.pick("application/zip", "application/x-zip-compressed",
+                "application/octet-stream"));
+        groupZip.addView(btnPickZip);
+        etZip = ui.input("ZIP escolhido (ou digite o nome)",
+                "O botão acima preenche com o caminho. Também aceita só o nome do arquivo em Downloads.",
+                "Pojarush_Test3-main.zip");
         groupZip.addView(etZip.layout);
         MaterialButton btnList = ui.outlined("Listar ZIPs da pasta Downloads");
         btnList.setOnClickListener(v -> listZips());
@@ -203,8 +190,13 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
                 "Deixe vazio e o app procura em Downloads um ZIP com o nome do projeto + \"assinatura\" (ex.: Pojarush_Test3-assinatura.zip) "
                         + "com a keystore (.jks) e os arquivos .store_password.txt, .key_password.txt e .key_alias.txt. "
                         + "As chaves ficam guardadas no Termux e são reutilizadas nos próximos builds, inclusive por link de repositório.");
+        signPicker = new FilePicker(this, (path, name) -> etSignZip.set(path));
+        MaterialButton btnPickSign = ui.outlined("Escolher ZIP de assinatura no celular");
+        btnPickSign.setOnClickListener(v -> signPicker.pick("application/zip", "application/x-zip-compressed",
+                "application/octet-stream"));
+        sign.body.addView(btnPickSign);
         etSignZip = ui.input("ZIP de assinatura (opcional)",
-                "Só preencha se o nome for diferente do padrão.", "Pojarush_Test3-assinatura.zip");
+                "Só preencha se o nome for diferente do padrão ou se escolheu pelo botão.", "Pojarush_Test3-assinatura.zip");
         sign.body.addView(etSignZip.layout);
         etExtrasDir = ui.input("Outros arquivos: pasta no Termux (opcional)", "Copia arquivos de uma pasta do Termux para o projeto, se precisar de algo além da assinatura.", "~/projects/MeuApp");
         etExtraFiles = ui.input("Outros arquivos: nomes a copiar", "Separados por espaço.", "config.properties");
@@ -252,43 +244,26 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
         content.addView(btnCancel);
         content.addView(btnResume);
 
-        Ui.Card result = ui.card("Resultado", null);
-        resultCard = result.view;
-        resultCard.setVisibility(View.GONE);
-        tvStatus = ui.text("", 16, R.color.text_primary, true);
-        tvStep = ui.hint("");
-        progress = ui.progress();
-        tvArtifacts = ui.body("");
-        diagHolder = ui.column();
-        btnToggleLog = ui.outlined("Mostrar log completo");
-        btnCopyLog = ui.outlined("Copiar log");
-        logScroll = new ScrollView(this);
-        logScroll.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ui.dp(320)));
-        logScroll.setBackgroundColor(getColor(R.color.purple_surface));
-        logScroll.setPadding(ui.dp(8), ui.dp(8), ui.dp(8), ui.dp(8));
-        tvLog = ui.mono("");
-        logScroll.addView(tvLog);
-        logScroll.setVisibility(View.GONE);
-        btnToggleLog.setOnClickListener(v -> {
-            logVisible = !logVisible;
-            logScroll.setVisibility(logVisible ? View.VISIBLE : View.GONE);
-            btnToggleLog.setText(logVisible ? "Ocultar log" : "Mostrar log completo");
-            if (logVisible) logScroll.post(() -> logScroll.fullScroll(View.FOCUS_DOWN));
-        });
-        btnCopyLog.setOnClickListener(v -> {
-            JobManager.Job j = JobManager.current();
-            if (j != null) Ui.copy(this, "log", prettyLog(j.snapshot.log));
-        });
-        result.body.addView(tvStatus);
-        result.body.addView(tvStep);
-        result.body.addView(progress);
-        result.body.addView(tvArtifacts);
-        result.body.addView(diagHolder);
-        result.body.addView(btnToggleLog);
-        result.body.addView(logScroll);
-        result.body.addView(btnCopyLog);
-        content.addView(resultCard);
+        panel = new JobPanel(this, j -> !JobManager.KIND_DECOMPILE.equals(j.kind), "Compilar de novo",
+                new JobPanel.Host() {
+                    @Override
+                    public void onRunningChanged(boolean running) {
+                        btnBuild.setEnabled(!running);
+                        btnResume.setEnabled(!running);
+                        btnCancel.setVisibility(running ? View.VISIBLE : View.GONE);
+                    }
+
+                    @Override
+                    public String sdkDir() {
+                        return etSdk.get();
+                    }
+
+                    @Override
+                    public void runAgain() {
+                        startBuild();
+                    }
+                });
+        content.addView(panel.view());
     }
 
     private void updateSourceVisibility() {
@@ -392,7 +367,7 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
             }
             etGit.layout.setError(null);
         } else if (r.zipName.isEmpty()) {
-            etZip.layout.setError("Informe o nome do ZIP (ou use Listar ZIPs)");
+            etZip.layout.setError("Escolha o ZIP com o botão ou informe o nome");
             return;
         } else {
             etZip.layout.setError(null);
@@ -417,8 +392,8 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
             String token = r.fromGit && r.useToken ? Prefs.token(this) : "";
             String title = r.sourceLabel();
             ProfileStore.saveLast(this, r);
-            lastLogShown = "";
-            BuildService.startJob(this, id, title, script, token, true, r.sdkDir);
+            panel.reset();
+            BuildService.startJob(this, id, title, script, token, JobManager.KIND_BUILD, r.sdkDir);
             Toast.makeText(this, "Build enviado ao Termux. Você pode sair do app.", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -522,138 +497,6 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
 
     @Override
     public void onJobChanged(JobManager.Job job) {
-        if (job == null) {
-            resultCard.setVisibility(View.GONE);
-            btnBuild.setEnabled(true);
-            btnCancel.setVisibility(View.GONE);
-            return;
-        }
-        resultCard.setVisibility(View.VISIBLE);
-        JobSnapshot s = job.snapshot;
-        boolean running = !job.finished;
-        btnBuild.setEnabled(!running);
-        btnResume.setEnabled(!running);
-        btnCancel.setVisibility(running ? View.VISIBLE : View.GONE);
-        progress.setVisibility(running ? View.VISIBLE : View.GONE);
-        if (running) {
-            if (s.total > 0) {
-                progress.setIndeterminate(false);
-                progress.setProgress(Math.max(1, s.step) * 100 / s.total);
-            } else {
-                progress.setIndeterminate(true);
-            }
-            tvStatus.setText(job.launching ? "Enviando ao Termux…" : "⟳ " + (s.stepName.isEmpty() ? "Executando…" : s.stepName));
-            tvStatus.setTextColor(getColor(R.color.status_running));
-            handler.removeCallbacks(ticker);
-            handler.post(ticker);
-        } else {
-            handler.removeCallbacks(ticker);
-            boolean ok = s.state == JobSnapshot.State.SUCCESS;
-            tvStatus.setText(ok ? (job.isBuild ? "✓ Build concluído" : "✓ Comando concluído")
-                    : s.state == JobSnapshot.State.CANCELLED ? "⊘ Cancelado" : "✗ O build falhou");
-            tvStatus.setTextColor(getColor(ok ? R.color.status_success : R.color.status_failure));
-            tvStep.setText(String.format(Locale.US, "Duração: %s", formatElapsed(System.currentTimeMillis() - job.startedAt)));
-        }
-        if (running) updateElapsed(job);
-
-        if (!s.artifacts.isEmpty()) {
-            StringBuilder sb = new StringBuilder("Arquivos gerados:\n");
-            for (String a : s.artifacts) sb.append("• ").append(a).append('\n');
-            sb.append("\nAbra o gerenciador de arquivos em Downloads para instalar.");
-            tvArtifacts.setText(sb.toString());
-            tvArtifacts.setVisibility(View.VISIBLE);
-        } else {
-            tvArtifacts.setVisibility(View.GONE);
-        }
-
-        String pretty = prettyLog(s.log);
-        if (!pretty.equals(lastLogShown)) {
-            lastLogShown = pretty;
-            tvLog.setText(pretty);
-            if (logVisible) logScroll.post(() -> logScroll.fullScroll(View.FOCUS_DOWN));
-        }
-        renderDiagnoses(job);
-    }
-
-    private void updateElapsed(JobManager.Job job) {
-        JobSnapshot s = job.snapshot;
-        String step = s.total > 0 ? "Etapa " + s.step + " de " + s.total + " · " : "";
-        tvStep.setText(step + "tempo: " + formatElapsed(System.currentTimeMillis() - job.startedAt)
-                + " · pode sair do app, você será avisado");
-    }
-
-    private static String formatElapsed(long ms) {
-        long sec = ms / 1000;
-        return String.format(Locale.US, "%02d:%02d", sec / 60, sec % 60);
-    }
-
-    private void renderDiagnoses(JobManager.Job job) {
-        diagHolder.removeAllViews();
-        if (!job.finished) return;
-        boolean ok = job.snapshot.state == JobSnapshot.State.SUCCESS;
-        if (ok && !job.isBuild) {
-            TextView t = ui.hint("Pronto. Toque abaixo para compilar de novo.");
-            diagHolder.addView(t);
-            MaterialButton again = ui.button("Compilar de novo");
-            again.setOnClickListener(v -> startBuild());
-            diagHolder.addView(again);
-        }
-        if (!job.diagnoses.isEmpty()) {
-            diagHolder.addView(ui.text(ok ? "Avisos" : "Por que falhou e como resolver", 15,
-                    R.color.text_primary, true));
-        }
-        for (Diagnosis d : job.diagnoses) diagHolder.addView(diagnosisView(d));
-    }
-
-    private View diagnosisView(Diagnosis d) {
-        boolean error = d.severity == Diagnosis.Severity.ERROR;
-        Ui.Card c = ui.card((error ? "✗ " : "⚠ ") + d.title, d.cause);
-        c.title.setTextColor(getColor(error ? R.color.error : R.color.accent_orange));
-        c.title.setTextSize(15);
-        c.sub.setTextColor(getColor(R.color.text_primary));
-        int n = 1;
-        for (String step : d.steps) {
-            c.body.addView(ui.hint((d.steps.size() > 1 ? (n++) + ". " : "") + step));
-        }
-        if (d.hasFix()) {
-            MaterialButton fix = ui.button("Corrigir automaticamente: " + d.fixLabel);
-            fix.setOnClickListener(v -> confirmFix(d));
-            c.body.addView(fix);
-        }
-        if (!d.copyText.isEmpty()) {
-            MaterialButton cp = ui.outlined("Copiar comando para o Termux");
-            cp.setOnClickListener(v -> Ui.copy(this, "comando", d.copyText));
-            c.body.addView(cp);
-        }
-        ((LinearLayout.LayoutParams) c.view.getLayoutParams()).bottomMargin = ui.dp(10);
-        return c.view;
-    }
-
-    private void confirmFix(Diagnosis d) {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(d.fixLabel)
-                .setMessage("Isto vai executar no Termux:\n\n" + d.fixCommand)
-                .setPositiveButton("Executar", (dlg, w) -> {
-                    String id = "f" + System.currentTimeMillis();
-                    String script = ScriptBuilder.commandJobScript(id, d.fixLabel, d.fixCommand);
-                    lastLogShown = "";
-                    BuildService.startJob(this, id, d.fixLabel, script, "", false, etSdk.get());
-                })
-                .setNegativeButton("Cancelar", null)
-                .show();
-    }
-
-    private static String prettyLog(String log) {
-        if (log == null) return "";
-        StringBuilder sb = new StringBuilder();
-        for (String line : log.split("\\r?\\n")) {
-            if (line.startsWith("##TJU_CHECK##")) continue;
-            if (line.startsWith("##TJU_STEP## ")) sb.append("▶ ").append(line.substring(13)).append('\n');
-            else if (line.startsWith("##TJU_FAIL## ")) sb.append("✗ ").append(line.substring(13)).append('\n');
-            else if (line.startsWith("##TJU_WARN## ")) sb.append("⚠ ").append(line.substring(13)).append('\n');
-            else if (line.startsWith("##TJU_DONE##")) sb.append("✓ ").append(line.substring(12).trim()).append('\n');
-            else sb.append(line).append('\n');
-        }
-        return sb.toString();
+        panel.onJobChanged(job);
     }
 }

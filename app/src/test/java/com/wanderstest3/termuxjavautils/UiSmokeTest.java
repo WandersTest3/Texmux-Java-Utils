@@ -8,6 +8,7 @@ import com.wanderstest3.termuxjavautils.build.JobSnapshot;
 import com.wanderstest3.termuxjavautils.job.JobManager;
 import com.wanderstest3.termuxjavautils.ui.build.BuildActivity;
 import com.wanderstest3.termuxjavautils.ui.cicd.CicdActivity;
+import com.wanderstest3.termuxjavautils.ui.decompile.DecompileActivity;
 import com.wanderstest3.termuxjavautils.ui.scripts.ScriptsActivity;
 import com.wanderstest3.termuxjavautils.ui.setup.SetupActivity;
 import com.wanderstest3.termuxjavautils.ui.termux.TermuxActivity;
@@ -49,6 +50,24 @@ public class UiSmokeTest {
     @Test
     public void scriptsOpens() {
         assertNotNull(open(ScriptsActivity.class));
+    }
+
+    @Test
+    public void decompileOpensAndRendersJob() {
+        JobManager.Job job = new JobManager.Job();
+        job.id = "d1";
+        job.kind = JobManager.KIND_DECOMPILE;
+        job.title = "app.apk";
+        job.launching = false;
+        job.finished = true;
+        job.snapshot.state = JobSnapshot.State.FAILED;
+        job.snapshot.log = "##TJU_FAIL## DEC_INPUT_NOT_FOUND app.apk\n";
+        job.diagnoses = new com.wanderstest3.termuxjavautils.build.DiagnosisEngine(null)
+                .analyze(job.snapshot.log, true);
+        JobManager.publish(job);
+        DecompileActivity a = open(DecompileActivity.class);
+        assertNotNull(a);
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();
     }
 
     @Test

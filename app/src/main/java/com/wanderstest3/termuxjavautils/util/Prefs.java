@@ -11,6 +11,7 @@ public final class Prefs {
     public static final String KEY_LAST = "build_last_form";
     public static final String KEY_SEEDED = "profiles_seeded";
     public static final String KEY_CICD = "cicd_form";
+    public static final String KEY_DECOMPILE = "decompile_form";
 
     private Prefs() {}
 
