@@ -44,6 +44,13 @@ public class DiagnosisEngineTest {
     }
 
     @Test
+    public void shebangAndSignZip() {
+        assertTrue(has(new DiagnosisEngine(null).analyze(
+                "./gradlew: /usr/bin/env: bad interpreter: No such file or directory\n##TJU_FAIL## GRADLE_FAILED 126\n", true), "SHEBANG"));
+        assertTrue(has(new DiagnosisEngine(null).analyze("##TJU_FAIL## SIGN_ZIP_NOT_FOUND x.zip\n", true), "SIGN_ZIP_NOT_FOUND"));
+    }
+
+    @Test
     public void unknownFailureIsGeneric() {
         List<Diagnosis> l = new DiagnosisEngine(null).analyze("* What went wrong:\nSomething odd\n* Try:\n", true);
         assertTrue(has(l, "UNKNOWN"));

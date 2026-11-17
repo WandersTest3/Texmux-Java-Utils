@@ -144,9 +144,9 @@ else
     [ -n "$TJU_TOKEN" ] && CL_URL="${GIT_URL/https:\/\//https://x-access-token:$TJU_TOKEN@}"
     log "Clonando $GIT_URL${GIT_BRANCH:+ (branch $GIT_BRANCH)}"
     if [ -n "$GIT_BRANCH" ]; then
-      GIT_TERMINAL_PROMPT=0 git clone --depth 1 -b "$GIT_BRANCH" "$CL_URL" "$DEST" 2>&1 | mask_token
+      GIT_TERMINAL_PROMPT=0 git clone -q --depth 1 -b "$GIT_BRANCH" "$CL_URL" "$DEST" 2>&1 | mask_token
     else
-      GIT_TERMINAL_PROMPT=0 git clone --depth 1 "$CL_URL" "$DEST" 2>&1 | mask_token
+      GIT_TERMINAL_PROMPT=0 git clone -q --depth 1 "$CL_URL" "$DEST" 2>&1 | mask_token
     fi
     if [ "${PIPESTATUS[0]}" -eq 0 ]; then
       GOT=1
@@ -189,14 +189,72 @@ if [ -n "$EXTRA_FILES" ]; then
   done
 fi
 
+BASE_NAME="${NAME%-main}"
+BASE_NAME="${BASE_NAME%-master}"
+KEYS_DIR="$HOME/.tju/keys/$BASE_NAME"
+
+find_sign_zip() {
+  local z
+  if [ -n "$SIGN_ZIP" ]; then
+    z="$SIGN_ZIP"
+    case "$z" in
+      /*) ;;
+      "~"*|"\$"*) z="$(xp "$z")" ;;
+      *) z="$DOWNLOAD_DIR/$z" ;;
+    esac
+    [ -f "$z" ] || { [ -f "$z.zip" ] && z="$z.zip"; }
+    [ -f "$z" ] || fail SIGN_ZIP_NOT_FOUND "$SIGN_ZIP"
+    echo "$z"
+    return 0
+  fi
+  ls -1t "$DOWNLOAD_DIR"/"$BASE_NAME"*.zip 2>/dev/null | grep -iE '(assinatura|signature|signing|keystore|chave)' | head -1
+}
+
+import_keys() {
+  local zip="$1" tmp="$TJU_DIR/keys_tmp" k d f found
+  rm -rf "$tmp"
+  mkdir -p "$tmp"
+  unzip -q -o "$zip" -d "$tmp" || fail SIGN_ZIP_CORRUPT "$zip"
+  k="$(find "$tmp" -type f \( -name '*.jks' -o -name '*.keystore' \) -not -path '*__MACOSX*' -not -name '._*' | head -1)"
+  [ -n "$k" ] || fail SIGN_ZIP_EMPTY "$zip"
+  d="$(dirname "$k")"
+  rm -rf "$KEYS_DIR"
+  mkdir -p "$KEYS_DIR"
+  cp -f "$k" "$KEYS_DIR/"
+  for f in .store_password.txt .key_password.txt .key_alias.txt; do
+    found="$(find "$tmp" -type f -name "$f" -not -path '*__MACOSX*' | head -1)"
+    [ -n "$found" ] && cp -f "$found" "$KEYS_DIR/"
+  done
+  chmod 600 "$KEYS_DIR"/* "$KEYS_DIR"/.[!.]* 2>/dev/null
+  rm -rf "$tmp"
+}
+
+apply_keys() {
+  local f
+  for f in $(ls -A "$KEYS_DIR" 2>/dev/null); do
+    cp -f "$KEYS_DIR/$f" "$ROOT/$f" && chmod 600 "$ROOT/$f"
+  done
+}
+
+SZ="$(find_sign_zip)"
+if [ -n "$SZ" ]; then
+  log "Assinatura: importando de $(basename "$SZ")"
+  import_keys "$SZ"
+  apply_keys
+elif [ -z "$(ls *.jks *.keystore 2>/dev/null | head -1)" ] && [ -n "$(ls -A "$KEYS_DIR" 2>/dev/null)" ]; then
+  log "Assinatura: usando chaves guardadas de $BASE_NAME"
+  apply_keys
+fi
+
 JKS="$(ls *.jks *.keystore 2>/dev/null | head -1)"
+if [ -n "$JKS" ] && [ ! -f .store_password.txt ]; then warn SIGN_NO_PASSWORDS "$JKS"; fi
 if [ -n "$JKS" ] && command -v keytool >/dev/null 2>&1 && [ -f .store_password.txt ]; then
   KALIAS=""
   [ -f .key_alias.txt ] && KALIAS="$(tr -d '\r\n' < .key_alias.txt)"
   if keytool -list -keystore "$JKS" -storepass:file .store_password.txt ${KALIAS:+-alias "$KALIAS"} >/dev/null 2>&1; then
     log "Keystore verificada: $JKS"
   else
-    fail KEYSTORE_INVALID "$JKS"
+    warn KEYSTORE_INVALID "$JKS"
   fi
 fi
 
@@ -204,7 +262,7 @@ GRADLE_CMD=""
 if [ -f gradlew ]; then
   chmod +x gradlew
   if [ -f gradle/wrapper/gradle-wrapper.jar ]; then
-    GRADLE_CMD="./gradlew"
+    GRADLE_CMD="sh ./gradlew"
   elif command -v gradle >/dev/null 2>&1; then
     warn WRAPPER_JAR_MISSING
     GRADLE_CMD="gradle"

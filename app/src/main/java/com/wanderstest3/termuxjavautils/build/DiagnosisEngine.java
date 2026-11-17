@@ -112,8 +112,10 @@ public final class DiagnosisEngine {
                         "A pasta é lida dentro do Termux (ex.: ~/projects/MeuApp)."));
                 break;
             case "KEYSTORE_INVALID":
-                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Não consegui abrir a keystore",
-                        "A senha em .store_password.txt ou o alias em .key_alias.txt não confere com " + detail + ".",
+                put(new Diagnosis(code, warn ? Diagnosis.Severity.WARNING : Diagnosis.Severity.ERROR,
+                        "Não consegui validar a keystore",
+                        "O keytool não abriu " + detail + " com a senha de .store_password.txt (ou o alias de .key_alias.txt). "
+                                + "O build continuou; se a assinatura falhar, o motivo aparecerá abaixo.",
                         "Verifique se os arquivos de senha estão sem espaços ou linhas extras.",
                         "Teste no Termux: keytool -list -keystore " + detail));
                 break;
@@ -182,6 +184,23 @@ public final class DiagnosisEngine {
                         "O projeto pede essa plataforma. O Gradle tentará baixar; se falhar, instale manualmente.",
                         "sdkmanager \"platforms;" + detail + "\"")
                         .fix("Instalar " + detail, sdkManager("\"platforms;" + detail + "\"")));
+                break;
+            case "SIGN_ZIP_NOT_FOUND":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "ZIP de assinatura não encontrado: " + detail,
+                        "O arquivo informado não existe na pasta de downloads.",
+                        "Confira o nome ou deixe o campo vazio para o app procurar sozinho.",
+                        "O nome padrão é o do projeto + \"assinatura\", ex.: Pojarush_Test3-assinatura.zip."));
+                break;
+            case "SIGN_ZIP_CORRUPT":
+            case "SIGN_ZIP_EMPTY":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "ZIP de assinatura inválido",
+                        "Não consegui extrair o ZIP ou ele não contém um arquivo .jks/.keystore.",
+                        "O ZIP deve conter a keystore (.jks) e os arquivos .store_password.txt, .key_password.txt e .key_alias.txt."));
+                break;
+            case "SIGN_NO_PASSWORDS":
+                put(new Diagnosis(code, Diagnosis.Severity.WARNING, "Keystore sem arquivo de senha",
+                        "Encontrei " + detail + ", mas não há .store_password.txt. O Gradle pode não conseguir assinar.",
+                        "Inclua .store_password.txt, .key_password.txt e .key_alias.txt no ZIP de assinatura."));
                 break;
             case "TERMUX_NO_RESPONSE":
                 put(new Diagnosis(code, Diagnosis.Severity.ERROR, "O Termux não respondeu",
@@ -261,6 +280,13 @@ public final class DiagnosisEngine {
 
         if (has(log, "Could not find or load main class org\\.gradle\\.wrapper\\.GradleWrapperMain")) {
             put(wrapperMissing(false));
+        }
+        if (has(log, "bad interpreter: No such file or directory|/usr/bin/env: .*No such file")) {
+            put(new Diagnosis("SHEBANG", Diagnosis.Severity.ERROR, "Script com interpretador inexistente no Termux",
+                    "Um script do projeto começa com #!/usr/bin/env, que não existe no Termux.",
+                    "Para o gradlew o app já usa \"sh ./gradlew\". Se for outro script, rode no Termux:",
+                    "termux-fix-shebang nome-do-script")
+                    .copy("termux-fix-shebang gradlew"));
         }
         if (has(log, "SDK location not found")) {
             put(new Diagnosis("SDK_LOCATION", Diagnosis.Severity.ERROR, "O Gradle não achou o Android SDK",

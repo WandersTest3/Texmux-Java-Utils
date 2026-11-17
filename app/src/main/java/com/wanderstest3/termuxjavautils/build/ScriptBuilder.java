@@ -34,6 +34,7 @@ public final class ScriptBuilder {
         sb.append(var("GRADLE_ARGS", nz(r.gradleArgs).trim()));
         sb.append(var("EXTRAS_DIR", nz(r.extrasDir).trim()));
         sb.append(var("EXTRA_FILES", nz(r.extraFiles).trim()));
+        sb.append(var("SIGN_ZIP", nz(r.signZip).trim()));
         sb.append(var("USE_AAPT2", r.useAapt2 ? "1" : "0"));
         sb.append(var("SDK_DIR", orDefault(r.sdkDir, "$HOME/android-sdk")));
         sb.append(var("JAVA_HOME_OVERRIDE", nz(r.javaHome).trim()));

@@ -15,6 +15,11 @@ O app detecta sozinho a raiz do projeto, o módulo Android (`com.android.applica
 ### Quando falha
 O app lê o log e explica o motivo com passos de correção, e oferece correção automática quando possível. Exemplos reconhecidos: Java ausente ou versão errada, `unzip`/`git` faltando, sem permissão de Downloads, ZIP não encontrado ou corrompido, Gradle Wrapper ausente, SDK/plataforma/build-tools ausentes, licenças não aceitas, aapt2 incompatível, falta de memória, rede, dependência/plugin não encontrado, senha de keystore errada e erros de compilação (arquivo:linha).
 
+### Assinatura automática
+Coloque em Downloads um ZIP com o nome do projeto + `assinatura` (ex.: `Pojarush_Test3-assinatura.zip`) contendo a keystore (`.jks`/`.keystore`) e os arquivos `.store_password.txt`, `.key_password.txt` e `.key_alias.txt`. Ao compilar, o app encontra o ZIP sozinho (ou use o campo *ZIP de assinatura*), copia os arquivos para o projeto e guarda as chaves em `~/.tju/keys/<projeto>` no Termux; nos próximos builds, inclusive por link de repositório, elas são reutilizadas sem o ZIP. Com keystore presente, o modo Automático gera Release.
+
+O `gradlew` é executado com `sh ./gradlew`, então não depende de `/usr/bin/env` (inexistente no Termux).
+
 ### Perfis
 Salve as configurações de um projeto para compilar com um toque. Há um perfil de exemplo (`Pojarush_Test3`) que você pode editar ou excluir.
 

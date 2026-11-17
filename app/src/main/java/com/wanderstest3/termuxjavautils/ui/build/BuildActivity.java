@@ -64,6 +64,7 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
     private Ui.Input etModule;
     private Ui.Input etExtrasDir;
     private Ui.Input etExtraFiles;
+    private Ui.Input etSignZip;
     private Ui.Input etGradleArgs;
     private SwitchMaterial swAapt2;
     private Ui.Input etSdk;
@@ -198,11 +199,15 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
         what.body.addView(etModule.layout);
         content.addView(what.view);
 
-        Ui.Card sign = ui.card("3. Assinatura e arquivos extras (opcional)",
-                "Copia arquivos privados (keystore, senhas) de uma pasta do Termux para dentro do projeto antes de compilar. Eles nunca saem do celular.");
-        etExtrasDir = ui.input("Pasta no Termux", "Caminho dentro do Termux; ~ é a pasta inicial.", "~/projects/MeuApp");
-        etExtraFiles = ui.input("Arquivos a copiar", "Separados por espaço.",
-                "app.jks .store_password.txt .key_password.txt .key_alias.txt");
+        Ui.Card sign = ui.card("3. Assinatura (automática)",
+                "Deixe vazio e o app procura em Downloads um ZIP com o nome do projeto + \"assinatura\" (ex.: Pojarush_Test3-assinatura.zip) "
+                        + "com a keystore (.jks) e os arquivos .store_password.txt, .key_password.txt e .key_alias.txt. "
+                        + "As chaves ficam guardadas no Termux e são reutilizadas nos próximos builds, inclusive por link de repositório.");
+        etSignZip = ui.input("ZIP de assinatura (opcional)",
+                "Só preencha se o nome for diferente do padrão.", "Pojarush_Test3-assinatura.zip");
+        sign.body.addView(etSignZip.layout);
+        etExtrasDir = ui.input("Outros arquivos: pasta no Termux (opcional)", "Copia arquivos de uma pasta do Termux para o projeto, se precisar de algo além da assinatura.", "~/projects/MeuApp");
+        etExtraFiles = ui.input("Outros arquivos: nomes a copiar", "Separados por espaço.", "config.properties");
         sign.body.addView(etExtrasDir.layout);
         sign.body.addView(etExtraFiles.layout);
         content.addView(sign.view);
@@ -329,6 +334,7 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
         r.module = etModule.get();
         r.extrasDir = etExtrasDir.get();
         r.extraFiles = etExtraFiles.get();
+        r.signZip = etSignZip.get();
         r.gradleArgs = etGradleArgs.get();
         r.useAapt2 = swAapt2.isChecked();
         r.sdkDir = etSdk.get();
@@ -352,6 +358,7 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
         etModule.set(r.module);
         etExtrasDir.set(r.extrasDir);
         etExtraFiles.set(r.extraFiles);
+        etSignZip.set(r.signZip);
         etGradleArgs.set(r.gradleArgs);
         swAapt2.setChecked(r.useAapt2);
         etSdk.set(r.sdkDir);

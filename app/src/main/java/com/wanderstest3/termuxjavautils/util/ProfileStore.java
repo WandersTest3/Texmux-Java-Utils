@@ -25,6 +25,7 @@ public final class ProfileStore {
         o.put("gradleArgs", r.gradleArgs);
         o.put("extrasDir", r.extrasDir);
         o.put("extraFiles", r.extraFiles);
+        o.put("signZip", r.signZip);
         o.put("useAapt2", r.useAapt2);
         o.put("sdkDir", r.sdkDir);
         o.put("javaHome", r.javaHome);
@@ -47,6 +48,7 @@ public final class ProfileStore {
         r.gradleArgs = o.optString("gradleArgs", r.gradleArgs);
         r.extrasDir = o.optString("extrasDir", r.extrasDir);
         r.extraFiles = o.optString("extraFiles", r.extraFiles);
+        r.signZip = o.optString("signZip", r.signZip);
         r.useAapt2 = o.optBoolean("useAapt2", r.useAapt2);
         r.sdkDir = o.optString("sdkDir", r.sdkDir);
         r.javaHome = o.optString("javaHome", r.javaHome);
@@ -103,8 +105,7 @@ public final class ProfileStore {
         r.zipName = "Pojarush_Test3-main.zip";
         r.module = "Pojarush";
         r.output = BuildRequest.OUT_RELEASE;
-        r.extrasDir = "~/projects/Pojarush_Test3";
-        r.extraFiles = "pojarush.jks .store_password.txt .key_password.txt .key_alias.txt";
+        r.signZip = "Pojarush_Test3-assinatura.zip";
         r.useAapt2 = true;
         return r;
     }

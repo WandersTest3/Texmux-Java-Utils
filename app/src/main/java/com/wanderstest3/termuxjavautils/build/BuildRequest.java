@@ -18,6 +18,7 @@ public class BuildRequest {
     public String gradleArgs = "";
     public String extrasDir = "";
     public String extraFiles = "";
+    public String signZip = "";
     public boolean useAapt2 = true;
     public String sdkDir = "$HOME/android-sdk";
     public String javaHome = "";
