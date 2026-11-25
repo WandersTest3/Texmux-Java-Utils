@@ -29,6 +29,7 @@ public final class ScriptBuilder {
         sb.append(var("ZIP_NAME", nz(r.zipName).trim()));
         sb.append(var("GIT_URL", url));
         sb.append(var("GIT_BRANCH", branch));
+        sb.append(var("USE_TOKEN", r.fromGit && r.useToken ? "1" : "0"));
         sb.append(var("MODULE", nz(r.module).trim()));
         sb.append(var("OUTPUT_KIND", nz(r.output)));
         sb.append(var("GRADLE_ARGS", nz(r.gradleArgs).trim()));

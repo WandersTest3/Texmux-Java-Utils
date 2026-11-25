@@ -389,7 +389,7 @@ public class BuildActivity extends BaseActivity implements JobManager.Listener {
         try {
             String id = "b" + System.currentTimeMillis();
             String script = ScriptBuilder.buildScript(r, id, loadBody(), false);
-            String token = r.fromGit && r.useToken ? Prefs.token(this) : "";
+            String token = Prefs.token(this);
             String title = r.sourceLabel();
             ProfileStore.saveLast(this, r);
             panel.reset();

@@ -99,6 +99,37 @@ public final class DiagnosisEngine {
                         "O arquivo está corrompido ou o download não terminou.",
                         "Baixe o ZIP novamente.", "Teste abrindo o arquivo em um gerenciador de arquivos."));
                 break;
+            case "DOTNET_NO_TOKEN":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Projeto .NET precisa do token do GitHub",
+                        "Esse projeto não é Gradle e só compila no GitHub Actions, que exige o token.",
+                        "Salve um token com as permissões repo e workflow na tela GitHub Actions e rode o build de novo."));
+                break;
+            case "DOTNET_REPO_NOT_FOUND":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Repositório não encontrado no GitHub",
+                        "Não achei \"" + detail + "\" com o token salvo.",
+                        "Use o modo Git com a URL do repositório ou confirme que o token tem acesso a ele."));
+                break;
+            case "DOTNET_NO_WORKFLOW":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Nenhum workflow com disparo manual",
+                        "Nenhum arquivo em .github/workflows tem workflow_dispatch.",
+                        "Adicione \"workflow_dispatch:\" em on: no workflow de build e envie ao repositório."));
+                break;
+            case "DOTNET_DISPATCH_FAILED":
+            case "DOTNET_NO_RUN":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Não consegui iniciar o workflow " + detail,
+                        "O GitHub recusou ou não iniciou a execução.",
+                        "Confirme que o token tem a permissão workflow e que o arquivo existe na branch no GitHub."));
+                break;
+            case "DOTNET_RUN_FAILED":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "O build no GitHub Actions falhou",
+                        "A execução terminou com erro: " + detail,
+                        "Abra o link, veja o passo que falhou e corrija o projeto."));
+                break;
+            case "DOTNET_DOWNLOAD_FAILED":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Falha ao baixar o artefato",
+                        "O build terminou, mas o download do resultado falhou.",
+                        "Tente de novo; artefatos expiram conforme a retenção do repositório."));
+                break;
             case "NOT_GRADLE_PROJECT":
                 put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Isso não parece um projeto Gradle",
                         "Não achei gradlew nem settings.gradle dentro do código-fonte.",
