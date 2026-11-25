@@ -9,6 +9,7 @@ public class DecompileRequest {
     public static final String MODE_BOTH = "BOTH";
     public static final String MODE_DEX2JAR = "DEX2JAR";
     public static final String MODE_EXTRACT = "EXTRACT";
+    public static final String MODE_DOTNET = "DOTNET";
 
     public String input = "";
     public String mode = MODE_JAVA;
@@ -36,6 +37,9 @@ public class DecompileRequest {
             case "dex":
             case "class":
             case "zip":
+            case "apkm":
+            case "xapk":
+            case "apks":
                 return true;
             default:
                 return false;
@@ -46,9 +50,18 @@ public class DecompileRequest {
         return "apk".equals(extensionOf(path));
     }
 
+    public static boolean isBundle(String path) {
+        String e = extensionOf(path);
+        return "apkm".equals(e) || "xapk".equals(e) || "apks".equals(e);
+    }
+
+    public static boolean isApkOrBundle(String path) {
+        return isApk(path) || isBundle(path);
+    }
+
     public static boolean isDexOrApk(String path) {
         String e = extensionOf(path);
-        return "apk".equals(e) || "dex".equals(e);
+        return "apk".equals(e) || "dex".equals(e) || isBundle(path);
     }
 
     public static boolean isSourceArchive(String path) {

@@ -144,6 +144,20 @@ public final class ScriptBuilder {
                 + "ls -1t \"$D\"/*.zip 2>/dev/null | head -30 | sed 's#.*/##'";
     }
 
+    public static final String DOTNET_MARKER = "#TJU_DOTNET_PY#";
+    public static final String DOTNET_EOF = "TJU_PY_EOF";
+
+    public static String embedDotnetExtractor(String shellBody, String python) {
+        if (!shellBody.contains(DOTNET_MARKER)) return shellBody;
+        String py = python.endsWith("\n") ? python : python + "\n";
+        String block = "TJU_PY=\"$HOME/.tju/tju_dotnet.py\"\n"
+                + "mkdir -p \"$HOME/.tju\"\n"
+                + "cat > \"$TJU_PY\" <<'" + DOTNET_EOF + "'\n"
+                + py
+                + DOTNET_EOF;
+        return shellBody.replace(DOTNET_MARKER, block);
+    }
+
     public static String listFilesCommand(String downloadDir, String... exts) {
         String d = orDefault(downloadDir, "/storage/emulated/0/Download");
         StringBuilder globs = new StringBuilder();

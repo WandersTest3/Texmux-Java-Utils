@@ -30,6 +30,8 @@ Salve as configurações de um projeto para compilar com um toque. Há um perfil
 Escolha um APK, JAR (inclusive mods), AAR, DEX ou ZIP e o app roda no Termux, em segundo plano:
 - **Java (jadx)** para qualquer formato; **Smali + recursos (apktool)** e **Java + Smali** só para APK;
 - **Converter para JAR (dex2jar)** para APK/DEX; **Só extrair** o conteúdo.
+- **Pacotes APKM, XAPK e APKS**: o app extrai o pacote, escolhe o `base.apk` (pelo `manifest.json` do XAPK ou pelo nome) e aplica o modo escolhido sobre ele. Em "Só extrair" o pacote inteiro é aberto.
+- **Assemblies .NET (Xamarin/Mono)**: para apps em C# (ex.: Survivalcraft), o jadx só mostra o lançador Java. Este modo extrai as DLLs do APK (e dos splits, se for pacote), inclusive dos formatos `assemblies.blob` e `libassemblies*.so`, descomprime as DLLs comprimidas e nomeia cada uma pelo nome do assembly. Se o Termux tiver `dotnet` e `ilspycmd`, também gera o C# das DLLs que não são do framework; sem eles, salva só as DLLs (abra-as no ILSpy). Apps Unity IL2CPP não trazem o C# original.
 O app instala o que faltar (`pkg install jadx apktool dex2jar zip`) e salva `<nome>-decompilado.zip` (ou uma pasta) em Downloads, com uma cópia em `~/decompiled`. Use apenas em arquivos que você tem direito de analisar.
 
 ## Preparar Termux (uma vez)
