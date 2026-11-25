@@ -90,6 +90,37 @@ public class DecompileTest {
         assertTrue(inst.get(0).fixCommand.contains("pkg install -y jadx"));
     }
 
+    @Test
+    public void bundlesAreSupported() {
+        assertTrue(DecompileRequest.isSupported("jogo.xapk"));
+        assertTrue(DecompileRequest.isSupported("jogo.APKM"));
+        assertTrue(DecompileRequest.isSupported("jogo.apks"));
+        assertTrue(DecompileRequest.isBundle("a.xapk"));
+        assertFalse(DecompileRequest.isBundle("a.apk"));
+        assertTrue(DecompileRequest.isApkOrBundle("a.apkm"));
+        assertFalse(DecompileRequest.isApkOrBundle("a.jar"));
+    }
+
+    @Test
+    public void dotnetModeAndEmbeddedExtractor() {
+        DecompileRequest r = new DecompileRequest();
+        r.input = "/storage/emulated/0/Download/jogo.xapk";
+        r.mode = DecompileRequest.MODE_DOTNET;
+        assertTrue(ScriptBuilder.decompileScript(r, "d1", "echo body\n").contains("DEC_MODE='DOTNET'"));
+        String body = ScriptBuilder.embedDotnetExtractor("echo a\n#TJU_DOTNET_PY#\necho b\n", "print('x')");
+        assertTrue(body.contains("cat > \"$TJU_PY\" <<'TJU_PY_EOF'\nprint('x')\nTJU_PY_EOF\necho b"));
+        assertEquals("echo\n", ScriptBuilder.embedDotnetExtractor("echo\n", "p"));
+    }
+
+    @Test
+    public void dotnetDiagnoses() {
+        DiagnosisEngine e = new DiagnosisEngine(null);
+        assertTrue(has(e.analyze("##TJU_FAIL## DEC_BUNDLE_NO_BASE x.xapk\n", true), "DEC_BUNDLE_NO_BASE"));
+        assertTrue(has(e.analyze("##TJU_FAIL## DEC_DOTNET_NONE x.apk\n", true), "DEC_DOTNET_NONE"));
+        assertTrue(has(e.analyze("##TJU_WARN## DEC_DOTNET_DETECTED x.apk\n##TJU_DONE## ok\n", false), "DEC_DOTNET_DETECTED"));
+        assertTrue(has(e.analyze("##TJU_WARN## DEC_DOTNET_NO_ILSPY x.apk\n##TJU_DONE## ok\n", false), "DEC_DOTNET_NO_ILSPY"));
+    }
+
     private static final class JobManagerKinds {
         static final String DECOMPILE = "decompile";
     }

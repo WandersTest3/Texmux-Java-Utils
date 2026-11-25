@@ -36,6 +36,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
     private static final int ID_BOTH = 9103;
     private static final int ID_DEX2JAR = 9104;
     private static final int ID_EXTRACT = 9105;
+    private static final int ID_DOTNET = 9106;
 
     private LinearLayout warnHolder;
     private Ui.Input etInput;
@@ -105,7 +106,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
     }
 
     private void buildUi() {
-        content.addView(ui.hint("Abre um APK, JAR (inclusive mods), AAR, DEX ou ZIP e devolve o código-fonte para ler. "
+        content.addView(ui.hint("Abre um APK, APKM, XAPK, APKS, JAR (inclusive mods), AAR, DEX ou ZIP e devolve o código-fonte para ler. "
                 + "Tudo roda no Termux em segundo plano; o app instala o que faltar sozinho (jadx, apktool, dex2jar) "
                 + "e avisa quando terminar. Só funciona com arquivos que você tem direito de analisar."));
         warnHolder = ui.column();
@@ -115,7 +116,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
                 "Escolha o arquivo na memória do celular. O app o traz para o Termux sozinho. "
                         + "Você também pode compartilhar um APK/JAR/ZIP de qualquer gerenciador de arquivos para este app.");
         picker = new FilePicker(this, (path, name) -> setInput(path));
-        MaterialButton btnPick = ui.button("Escolher arquivo (APK, JAR, AAR, DEX, ZIP)");
+        MaterialButton btnPick = ui.button("Escolher arquivo (APK, APKM, XAPK, JAR, AAR, DEX, ZIP)");
         btnPick.setOnClickListener(v -> picker.pick("application/vnd.android.package-archive",
                 "application/java-archive", "application/zip", "application/x-zip-compressed",
                 "application/octet-stream"));
@@ -136,6 +137,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
         rgMode.addView(ui.radio("Smali + recursos decodificados (apktool) — só APK", ID_SMALI));
         rgMode.addView(ui.radio("Java + Smali — só APK", ID_BOTH));
         rgMode.addView(ui.radio("Converter para JAR (dex2jar) — APK ou DEX", ID_DEX2JAR));
+        rgMode.addView(ui.radio("Assemblies .NET (Xamarin/Mono) — extrai as DLLs do APK", ID_DOTNET));
         rgMode.addView(ui.radio("Só extrair o conteúdo (como um ZIP)", ID_EXTRACT));
         what.body.addView(rgMode);
         swDeobf = ui.toggle("Desofuscar nomes (jadx) — para apps com nomes como a.b.c", false);
@@ -209,10 +211,11 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
         etInput.layout.setError(null);
         String ext = DecompileRequest.extensionOf(path);
         int checked = rgMode.getCheckedRadioButtonId();
-        if (!"apk".equals(ext) && (checked == ID_SMALI || checked == ID_BOTH)) rgMode.check(ID_JAVA);
-        if (!"apk".equals(ext) && !"dex".equals(ext) && checked == ID_DEX2JAR) rgMode.check(ID_JAVA);
+        boolean apkLike = DecompileRequest.isApkOrBundle(path);
+        if (!apkLike && (checked == ID_SMALI || checked == ID_BOTH || checked == ID_DOTNET)) rgMode.check(ID_JAVA);
+        if (!apkLike && !"dex".equals(ext) && checked == ID_DEX2JAR) rgMode.check(ID_JAVA);
         if (!DecompileRequest.isSupported(path)) {
-            etInput.layout.setError("Formato não suportado. Use APK, JAR, AAR, DEX, CLASS ou ZIP.");
+            etInput.layout.setError("Formato não suportado. Use APK, APKM, XAPK, APKS, JAR, AAR, DEX, CLASS ou ZIP.");
         }
     }
 
@@ -220,6 +223,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
         return id == ID_SMALI ? DecompileRequest.MODE_SMALI
                 : id == ID_BOTH ? DecompileRequest.MODE_BOTH
                 : id == ID_DEX2JAR ? DecompileRequest.MODE_DEX2JAR
+                : id == ID_DOTNET ? DecompileRequest.MODE_DOTNET
                 : id == ID_EXTRACT ? DecompileRequest.MODE_EXTRACT : DecompileRequest.MODE_JAVA;
     }
 
@@ -227,6 +231,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
         return DecompileRequest.MODE_SMALI.equals(mode) ? ID_SMALI
                 : DecompileRequest.MODE_BOTH.equals(mode) ? ID_BOTH
                 : DecompileRequest.MODE_DEX2JAR.equals(mode) ? ID_DEX2JAR
+                : DecompileRequest.MODE_DOTNET.equals(mode) ? ID_DOTNET
                 : DecompileRequest.MODE_EXTRACT.equals(mode) ? ID_EXTRACT : ID_JAVA;
     }
 
@@ -286,14 +291,17 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
         warnHolder.addView(c.view);
     }
 
-    private String loadBody() throws Exception {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(
-                getAssets().open("tju_decompile.sh"), "UTF-8"))) {
+    private String readAsset(String name) throws Exception {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(getAssets().open(name), "UTF-8"))) {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = br.readLine()) != null) sb.append(line).append('\n');
             return sb.toString();
         }
+    }
+
+    private String loadBody() throws Exception {
+        return ScriptBuilder.embedDotnetExtractor(readAsset("tju_decompile.sh"), readAsset("tju_dotnet.py"));
     }
 
     private void start() {
@@ -307,7 +315,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
             return;
         }
         if (!DecompileRequest.isSupported(r.input)) {
-            etInput.layout.setError("Formato não suportado. Use APK, JAR, AAR, DEX, CLASS ou ZIP.");
+            etInput.layout.setError("Formato não suportado. Use APK, APKM, XAPK, APKS, JAR, AAR, DEX, CLASS ou ZIP.");
             return;
         }
         etInput.layout.setError(null);
@@ -339,7 +347,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
             Toast.makeText(this, "Prepare o Termux primeiro (permissão).", Toast.LENGTH_LONG).show();
             return;
         }
-        final String cmd = ScriptBuilder.listFilesCommand(etDownload.get(), "apk", "jar", "aar", "dex", "zip");
+        final String cmd = ScriptBuilder.listFilesCommand(etDownload.get(), "apk", "apkm", "xapk", "apks", "jar", "aar", "dex", "zip");
         Toast.makeText(this, "Consultando Downloads no Termux…", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             TermuxBridge.Result res = TermuxBridge.runBlocking(this, cmd, 25);
@@ -353,7 +361,7 @@ public class DecompileActivity extends BaseActivity implements JobManager.Listen
                 if (names.isEmpty()) {
                     new MaterialAlertDialogBuilder(this)
                             .setTitle("Nenhum arquivo encontrado")
-                            .setMessage("Não há APK/JAR/AAR/DEX/ZIP na pasta ou o Termux não tem acesso a ela. No Termux execute: termux-setup-storage")
+                            .setMessage("Não há APK/APKM/XAPK/JAR/AAR/DEX/ZIP na pasta ou o Termux não tem acesso a ela. No Termux execute: termux-setup-storage")
                             .setPositiveButton("OK", null)
                             .show();
                     return;

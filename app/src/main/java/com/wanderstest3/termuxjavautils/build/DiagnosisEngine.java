@@ -274,17 +274,39 @@ public final class DiagnosisEngine {
                 put(new Diagnosis(code, Diagnosis.Severity.ERROR, "O arquivo parece corrompido: " + detail,
                         "Não foi possível abrir o conteúdo como ZIP/APK/JAR.",
                         "Baixe ou copie o arquivo de novo.",
-                        "APKs divididos (.apks/.xapk) precisam ser extraídos antes: descompile o APK base."));
+                        "Se for um pacote .apkm/.xapk/.apks, confira se ele abre como ZIP em outro app."));
                 break;
             case "DEC_UNSUPPORTED":
                 put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Formato não suportado: ." + detail,
-                        "O app descompila APK, JAR, AAR, DEX, CLASS e ZIP.",
+                        "O app descompila APK, APKM, XAPK, APKS, JAR, AAR, DEX, CLASS e ZIP.",
                         "Escolha um arquivo com uma dessas extensões."));
                 break;
             case "DEC_MODE_UNSUPPORTED":
                 put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Essa opção não funciona com arquivos ." + detail,
-                        "A conversão para JAR (dex2jar) só aceita APK e DEX.",
+                        "A conversão para JAR (dex2jar) aceita APK e DEX; a extração .NET aceita só APK e pacotes APKM/XAPK/APKS.",
                         "Escolha \"Código Java (jadx)\" para JAR, AAR e ZIP."));
+                break;
+            case "DEC_BUNDLE_NO_BASE":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Não achei o APK base em " + detail,
+                        "O pacote não tem nenhum arquivo .apk dentro.",
+                        "Use \"Só extrair o conteúdo\" para ver o que o pacote contém.",
+                        "Pacotes APKM/XAPK/APKS são ZIPs com um base.apk e APKs de configuração."));
+                break;
+            case "DEC_DOTNET_NONE":
+                put(new Diagnosis(code, Diagnosis.Severity.ERROR, "Nenhum assembly .NET em " + detail,
+                        "O APK não tem DLLs do Xamarin/Mono, ou usa um formato que o app ainda não lê.",
+                        "Confira com \"Só extrair o conteúdo\" se existem as pastas assemblies/ ou lib/*/libassemblies*.so.",
+                        "Apps Unity IL2CPP não trazem o código C# original; só dá para extrair a estrutura com o Il2CppDumper."));
+                break;
+            case "DEC_DOTNET_DETECTED":
+                put(new Diagnosis(code, Diagnosis.Severity.WARNING, "App .NET/Xamarin ou Unity detectado",
+                        "O jadx só mostra o código Java do APK, que nesse tipo de app é apenas o lançador.",
+                        "Rode de novo com \"Assemblies .NET\" para extrair as DLLs onde está o código do jogo."));
+                break;
+            case "DEC_DOTNET_NO_ILSPY":
+                put(new Diagnosis(code, Diagnosis.Severity.WARNING, "DLLs extraídas, sem decompilador C#",
+                        "O Termux não tem dotnet e ilspycmd, então o app salvou só as DLLs.",
+                        "Abra as DLLs no ILSpy (PC) ou use o ilspycmd num ambiente com .NET para obter o C#."));
                 break;
             case "DEC_APK_ONLY":
                 put(new Diagnosis(code, Diagnosis.Severity.WARNING, "Smali só existe para APK",

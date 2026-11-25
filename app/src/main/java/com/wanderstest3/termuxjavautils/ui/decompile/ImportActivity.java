@@ -43,7 +43,7 @@ public class ImportActivity extends BaseActivity {
 
     private void route(String path, String name) {
         if (!DecompileRequest.isSupported(name) && !DecompileRequest.isSupported(path)) {
-            Toast.makeText(this, "Formato não suportado: use APK, JAR, AAR, DEX, CLASS ou ZIP.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Formato não suportado: use APK, APKM, XAPK, APKS, JAR, AAR, DEX, CLASS ou ZIP.", Toast.LENGTH_LONG).show();
             finish();
             return;
         }
